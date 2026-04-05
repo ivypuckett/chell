@@ -45,15 +45,17 @@ include(":app")   // remove the comment
 
 The setup script downloads platform and build-tool ZIPs from `dl.google.com`.
 In Anthropic cloud sessions, `dl.google.com` is **not** in the egress proxy's
-allowed hosts list, so the download step fails with
-`Proxy tunneling failed: Forbidden`.
+allowed hosts list — the proxy returns `403 host_not_allowed`.
+
+The setup script detects this early (via a quick connectivity check) and exits
+immediately with a clear error rather than spending minutes on a doomed install.
 
 **Consequence:** only `:core` can be built and tested in these sessions.
-`:app` must be compiled locally or in a CI environment with unrestricted
-internet access.
+`:app` must be compiled locally or in a CI environment where `dl.google.com`
+is reachable.
 
 The session-start hook (`/.claude/hooks/session-start.sh`) attempts the
-install automatically; it exits with code 0 even when the download fails so
+install automatically; it exits with code 0 even when the check fails so
 the session still starts cleanly.
 
 ## Running tests
