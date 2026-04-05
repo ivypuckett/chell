@@ -10,5 +10,10 @@
         ]
       }
     ]
+  },
+  "sandbox": {
+    "network": {
+      "allowedDomains": ["dl.google.com", "maven.google.com", "repo1.maven.org"]
+    }
   }
 }
