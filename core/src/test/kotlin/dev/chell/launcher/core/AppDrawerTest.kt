@@ -73,4 +73,42 @@ class AppDrawerTest {
     fun invalidPageSizeThrows() {
         assertFailsWith<IllegalArgumentException> { AppDrawer(apps, pageSize = 0) }
     }
+
+    @Test
+    fun filterEmptyQueryReturnsAll() {
+        val drawer = AppDrawer(apps, pageSize = 10)
+        val filtered = drawer.filter("")
+        assertEquals(drawer.pageCount, filtered.pageCount)
+        assertEquals(drawer.page(0).map { it.label }, filtered.page(0).map { it.label })
+    }
+
+    @Test
+    fun filterMatchesCaseInsensitively() {
+        val drawer = AppDrawer(apps, pageSize = 10)
+        val filtered = drawer.filter("AN")
+        // "Banana" and "Mango" contain "an" case-insensitively
+        assertEquals(listOf("Banana", "Mango"), filtered.page(0).map { it.label })
+    }
+
+    @Test
+    fun filterReturnsEmptyDrawerWhenNoMatch() {
+        val drawer = AppDrawer(apps, pageSize = 10)
+        val filtered = drawer.filter("xyz")
+        assertEquals(0, filtered.pageCount)
+    }
+
+    @Test
+    fun filterPreservesPageSize() {
+        val drawer = AppDrawer(apps, pageSize = 2)
+        val filtered = drawer.filter("a")
+        // "Apple", "Banana", "Mango" contain "a" — 3 results, pageSize 2 → 2 pages
+        assertEquals(2, filtered.pageCount)
+    }
+
+    @Test
+    fun filterDoesNotMutateOriginal() {
+        val drawer = AppDrawer(apps, pageSize = 10)
+        drawer.filter("apple")
+        assertEquals(5, drawer.page(0).size)
+    }
 }

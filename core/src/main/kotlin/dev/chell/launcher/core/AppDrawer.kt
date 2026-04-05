@@ -16,4 +16,10 @@ class AppDrawer(apps: List<AppInfo>, private val pageSize: Int) {
         val to = minOf(from + pageSize, sorted.size)
         return sorted.subList(from, to)
     }
+
+    fun filter(query: String): AppDrawer {
+        if (query.isEmpty()) return AppDrawer(sorted, pageSize)
+        val lower = query.lowercase()
+        return AppDrawer(sorted.filter { it.label.lowercase().contains(lower) }, pageSize)
+    }
 }
