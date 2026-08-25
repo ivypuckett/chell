@@ -1,0 +1,133 @@
+# Task runner for Chell. Run `task` to list everything.
+#
+# Note: this is unrelated to the `tasks/` directory, which holds the
+# work-item backlog (new -> reviewed -> done), not runnable commands.
+version: '3'
+
+env:
+  ANDROID_HOME: '{{.ANDROID_SDK_ROOT | default (printf "%s/Android/Sdk" .HOME)}}'
+
+vars:
+  AVD: chell-test
+  APK: app/build/outputs/apk/debug/app-debug.apk
+  PKG: dev.chell.launcher
+  ACTIVITY: dev.chell.launcher/.MainActivity
+  ADB: '{{.ANDROID_HOME}}/platform-tools/adb'
+  EMULATOR: '{{.ANDROID_HOME}}/emulator/emulator'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  # ── Setup ───────────────────────────────────────────────────────────────
+  setup:sdk:
+    desc: Install the Android SDK (no root needed)
+    cmds:
+      - bash scripts/setup-android-sdk.sh
+
+  setup:avd:
+    desc: Create the {{.AVD}} emulator image
+    status:
+      - test -d "$HOME/.android/avd/{{.AVD}}.avd"
+    cmds:
+      - >
+        "{{.ANDROID_HOME}}/cmdline-tools/latest/bin/sdkmanager"
+        --sdk_root="{{.ANDROID_HOME}}"
+        "emulator" "system-images;android-36;google_apis;x86_64"
+      - >
+        echo no | "{{.ANDROID_HOME}}/cmdline-tools/latest/bin/avdmanager" create avd
+        -n {{.AVD}} -k "system-images;android-36;google_apis;x86_64" -d pixel_6
+
+  # ── Build & test ────────────────────────────────────────────────────────
+  test:
+    desc: Run the pure-JVM core tests (no Android SDK needed)
+    cmds:
+      - ./gradlew :core:test
+
+  test:app:
+    desc: Run the Robolectric tests for :app
+    cmds:
+      - ./gradlew :app:testDebugUnitTest
+
+  build:
+    desc: Build everything, tests and lint included
+    cmds:
+      - ./gradlew build
+
+  apk:
+    desc: Assemble the debug APK
+    cmds:
+      - ./gradlew :app:assembleDebug
+
+  clean:
+    desc: Remove build outputs
+    cmds:
+      - ./gradlew clean
+
+  # ── Emulator ────────────────────────────────────────────────────────────
+  emu:
+    desc: Start the emulator in a window
+    cmds:
+      # setsid, not just `&`: task kills its whole process group on exit, which
+      # takes the emulator down with it. A new session detaches it.
+      - >
+        DISPLAY="${DISPLAY:-:0}" setsid --fork "{{.EMULATOR}}" -avd {{.AVD}}
+        -no-audio -no-boot-anim -gpu swiftshader_indirect
+        > /tmp/chell-emulator.log 2>&1 < /dev/null
+      - echo "emulator starting; run 'task emu:wait' to block until it is ready"
+
+  emu:headless:
+    desc: Start the emulator with no window (for CI or scripted checks)
+    cmds:
+      # See the note on `emu` about setsid.
+      - >
+        setsid --fork "{{.EMULATOR}}" -avd {{.AVD}} -no-window -no-audio -no-boot-anim
+        -gpu swiftshader_indirect > /tmp/chell-emulator.log 2>&1 < /dev/null
+      - echo "emulator starting; run 'task emu:wait' to block until it is ready"
+
+  emu:wait:
+    desc: Block until the emulator has finished booting
+    cmds:
+      - '"{{.ADB}}" wait-for-device'
+      - >
+        until [ "$("{{.ADB}}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ];
+        do sleep 3; done
+      - echo "emulator ready"
+
+  emu:stop:
+    desc: Shut the emulator down cleanly, preserving its state
+    cmds:
+      - '"{{.ADB}}" emu kill'
+
+  # ── Device ──────────────────────────────────────────────────────────────
+  install:
+    desc: Build and install the debug APK
+    deps: [apk]
+    cmds:
+      - '"{{.ADB}}" install -r {{.APK}}'
+
+  home:
+    desc: Make Chell the default home app
+    cmds:
+      - '"{{.ADB}}" shell cmd package set-home-activity {{.ACTIVITY}}'
+
+  run:
+    desc: Install, set as home, and show it
+    cmds:
+      - task: install
+      - task: home
+      - '"{{.ADB}}" shell input keyevent KEYCODE_HOME'
+
+  screenshot:
+    desc: Save a screenshot to chell-screenshot.png
+    cmds:
+      - '"{{.ADB}}" exec-out screencap -p > chell-screenshot.png'
+      - echo "wrote chell-screenshot.png"
+
+  logcat:
+    desc: Tail crashes and Chell's own log output
+    cmds:
+      - '"{{.ADB}}" logcat --pid=$("{{.ADB}}" shell pidof {{.PKG}} | tr -d "\r")'

@@ -2,6 +2,19 @@
 
 ## Quick start
 
+Common commands are wrapped in `Taskfile.yml` (go-task). Run `task` to list
+them. Note that this is unrelated to the `tasks/` directory, which is the
+work-item backlog, not runnable commands.
+
+```bash
+task test      # core tests
+task build     # everything, lint included
+task run       # install, set as home, show it
+task emu       # start the emulator in a window
+```
+
+Or with Gradle directly:
+
 ```bash
 # Pure JVM, no Android SDK needed (but see JDK note below):
 ./gradlew :core:test
@@ -119,12 +132,18 @@ uses it.
 ### Running on an emulator
 
 ```bash
-sdkmanager "emulator" "system-images;android-36;google_apis;x86_64"
-avdmanager create avd -n chell-test -k "system-images;android-36;google_apis;x86_64" -d pixel_6
-emulator -avd chell-test -no-window -no-audio -gpu swiftshader_indirect
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell cmd package set-home-activity dev.chell.launcher/.MainActivity
+task setup:avd    # one-time: download the system image and create the AVD
+task emu          # start it in a window (task emu:headless for no window)
+task emu:wait     # block until it has booted
+task run          # install, set as home, and show it
 ```
+
+`task emu` uses `setsid` rather than a bare `&`: go-task kills its process
+group when a task exits, which takes a plain background emulator down with it.
+
+To check which launcher is currently default, press Home and read
+`dumpsys activity activities` — `cmd package get-home-activities` does not
+exist on this API level.
 
 ## Git workflow
 
