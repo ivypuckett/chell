@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import dev.chell.launcher.core.AppDrawer
 import dev.chell.launcher.core.AppInfo
+import dev.chell.launcher.core.AppOrder
 import dev.chell.launcher.core.AppSearch
 import dev.chell.launcher.core.GridMetrics
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +49,12 @@ class MainActivity : ComponentActivity() {
     /** Every installed app; what the grid shows is this filtered by the query. */
     private var allApps: List<AppInfo> = emptyList()
 
+    /** Exactly what the grid is showing, which is what a drag's indexes mean. */
+    private var shownApps: List<AppInfo> = emptyList()
+
+    private lateinit var orderStore: PackageListStore
+    private var appOrder: AppOrder = AppOrder()
+
     /** The grid the pager is currently laid out for; null until the first load. */
     private var currentMetrics: GridMetrics? = null
 
@@ -75,6 +82,8 @@ class MainActivity : ComponentActivity() {
             onClick = ::launch,
             onLongClick = ::showAppActions,
         )
+        orderStore = PackageListStore(this, KEY_ORDER)
+        appOrder = AppOrder(orderStore.load())
         repository = AndroidAppRepository(this)
 
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -145,7 +154,12 @@ class MainActivity : ComponentActivity() {
         currentMetrics = metrics
         favoritesRow.show(allApps, metrics.columns)
 
-        val apps = AppSearch.search(allApps, searchField.text.toString())
+        // Search results are ranked by relevance, so the arrangement only
+        // applies to the unfiltered drawer -- and only that is draggable.
+        val searching = searchField.text.isNotBlank()
+        val matched = AppSearch.search(allApps, searchField.text.toString())
+        val apps = if (searching) matched else appOrder.apply(matched)
+        shownApps = apps
         if (apps.isEmpty()) {
             pager.visibility = View.GONE
             emptyMessage.setText(if (allApps.isEmpty()) R.string.no_apps else R.string.no_matches)
@@ -162,9 +176,12 @@ class MainActivity : ComponentActivity() {
         pager.adapter = DrawerPagerAdapter(
             drawer = drawer,
             columns = metrics.columns,
+            pageSize = metrics.pageSize,
             iconFor = ::cachedIcon,
             onClick = ::launch,
             onLongClick = ::showAppActions,
+            onMove = if (searching) null else ::moveApp,
+            onEdgeHold = if (searching) null else ::carryToPage,
         )
         pager.setCurrentItem(targetPage, false)
 
@@ -188,6 +205,36 @@ class MainActivity : ComponentActivity() {
 
     private fun cachedIcon(packageName: String): Drawable? =
         iconCache.getOrPut(packageName) { repository.icon(packageName) }
+
+    /**
+     * Records a drag in the drawer. Deliberately does not re-render: the cell
+     * has already moved on screen, and rebuilding the pager under a finger
+     * that is still down would cancel the drag it is reporting.
+     */
+    fun moveApp(from: Int, to: Int) {
+        appOrder = appOrder.move(shownApps, from, to)
+        orderStore.save(appOrder.packageNames)
+        shownApps = appOrder.apply(shownApps)
+    }
+
+    /**
+     * Sends the app held against an edge to the neighbouring page.
+     *
+     * The drag ends here rather than continuing on the new page: each page is
+     * its own RecyclerView, and a drag cannot be handed from one to another.
+     * The app lands at the near edge of the page it was carried to, which is
+     * where it was headed.
+     */
+    fun carryToPage(index: Int, direction: Int) {
+        val pageSize = currentMetrics?.pageSize ?: return
+        val target = pager.currentItem + direction
+        if (target < 0 || target >= (pager.adapter?.itemCount ?: 0)) return
+
+        val landing = if (direction > 0) target * pageSize else target * pageSize + pageSize - 1
+        moveApp(index, landing.coerceIn(0, shownApps.size - 1))
+        showApps()
+        pager.setCurrentItem(target, true)
+    }
 
     fun pinToFavorites(packageName: String) = favoritesRow.pin(packageName)
 
@@ -217,6 +264,10 @@ class MainActivity : ComponentActivity() {
             true
         }
         menu.show()
+    }
+
+    private companion object {
+        const val KEY_ORDER = "order"
     }
 
     private fun launch(app: AppInfo) {
