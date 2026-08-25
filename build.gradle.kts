@@ -1,5 +1,7 @@
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "2.0.21" apply false
-    // com.android.application and kotlin.android are declared in app/build.gradle.kts
-    // and are only resolved when the Android SDK is present.
+    // Plugin versions are declared here with `apply false`; subprojects apply
+    // them without a version.  :app needs no Kotlin plugin of its own — AGP 9
+    // has built-in Kotlin support (https://kotl.in/gradle/agp-built-in-kotlin).
+    id("org.jetbrains.kotlin.jvm") version "2.4.10" apply false
+    id("com.android.application") version "9.3.2" apply false
 }

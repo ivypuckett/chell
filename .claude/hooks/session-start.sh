@@ -5,14 +5,16 @@
 
 set -euo pipefail
 
+# The setup script no longer needs root; it installs into a user-writable dir.
 # Only run in remote (web) sessions.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-ANDROID_SDK_ROOT=/usr/lib/android-sdk
-PLATFORM_DIR="$ANDROID_SDK_ROOT/platforms/android-34"
-BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/34.0.0"
+# Keep these in sync with scripts/setup-android-sdk.sh.
+ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
+PLATFORM_DIR="$ANDROID_SDK_ROOT/platforms/android-36"
+BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/37.0.0"
 
 if [ -d "$PLATFORM_DIR" ] && [ -d "$BUILD_TOOLS_DIR" ]; then
   echo "Android SDK already present."
@@ -28,14 +30,14 @@ echo "Checking whether dl.google.com is reachable…"
 if ! curl -fsS --max-time 10 \
        ${https_proxy:+--proxy "$https_proxy"} \
        -o /dev/null \
-       "https://dl.google.com/android/repository/" 2>/dev/null; then
+       "https://dl.google.com/android/repository/repository2-3.xml" 2>/dev/null; then
   echo "dl.google.com is not accessible (host_not_allowed by egress proxy)."
   echo "Android SDK installation skipped. Only :core can be built in this session."
   exit 0
 fi
 
 echo "Attempting Android SDK installation…"
-if sudo -E bash "${CLAUDE_PROJECT_DIR}/scripts/setup-android-sdk.sh"; then
+if bash "${CLAUDE_PROJECT_DIR}/scripts/setup-android-sdk.sh"; then
   echo "export ANDROID_HOME=$ANDROID_SDK_ROOT" >> "${CLAUDE_ENV_FILE:-/dev/null}"
   echo "Android SDK installed. :app is now buildable."
 else

@@ -1,17 +1,20 @@
 package dev.chell.launcher
 
-import android.app.Activity
 import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-    }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        // Launchers do not navigate back to a previous screen.
+        // Launchers sit at the root of the task, so back must not navigate away.
+        // Replaces the old onBackPressed() override, which is no longer invoked
+        // for predictive back gestures.
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = Unit
+        })
     }
 }

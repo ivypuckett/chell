@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "chell"
 include(":core")
-// :app requires the Android SDK. Uncomment when ANDROID_HOME is set.
-// include(":app")
+// :app requires the Android SDK (see scripts/setup-android-sdk.sh).
+include(":app")
