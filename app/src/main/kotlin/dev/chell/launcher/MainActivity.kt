@@ -36,6 +36,9 @@ class MainActivity : ComponentActivity() {
     /** Every installed app; what the grid shows is this filtered by the query. */
     private var allApps: List<AppInfo> = emptyList()
 
+    /** The grid the pager is currently laid out for; null until the first load. */
+    private var currentMetrics: GridMetrics? = null
+
     /** Apps come and go while the launcher is on screen; reload when they do. */
     private val packageChangeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -68,6 +71,15 @@ class MainActivity : ComponentActivity() {
         // The grid is sized from the pager's measured bounds, so the first load
         // waits for layout.
         pager.doOnLayout { loadApps() }
+
+        // The pager shrinks when the keyboard opens over the search field, which
+        // fits fewer rows. Re-page whenever that changes the grid; re-rendering
+        // in place would reenter the layout pass, so hand it to the next frame.
+        pager.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (allApps.isNotEmpty() && gridMetrics() != currentMetrics) {
+                pager.post { if (gridMetrics() != currentMetrics) showApps() }
+            }
+        }
     }
 
     override fun onStart() {
@@ -115,6 +127,7 @@ class MainActivity : ComponentActivity() {
         emptyMessage.visibility = View.GONE
 
         val metrics = gridMetrics()
+        currentMetrics = metrics
         val drawer = AppDrawer(apps, pageSize = metrics.pageSize)
 
         val targetPage = if (keepPage) pager.currentItem.coerceAtMost(drawer.pageCount - 1) else 0

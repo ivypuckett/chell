@@ -1,25 +1,15 @@
 package dev.chell.launcher
 
-import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.content.pm.ApplicationInfo
-import android.content.pm.ResolveInfo
-import android.os.Looper
 import android.view.View
-import android.view.View.MeasureSpec
 import android.widget.EditText
 import android.widget.TextView
-import androidx.test.core.app.ApplicationProvider
-import androidx.viewpager2.widget.ViewPager2
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.android.controller.ActivityController
-import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class MainActivitySearchTest {
@@ -96,46 +86,10 @@ class MainActivitySearchTest {
 
     private fun launchHome(): MainActivity = startHome().get()
 
-    /**
-     * Robolectric never lays a window out on its own, and the first app load is
-     * deferred until the pager has been measured, so drive both explicitly.
-     */
-    private fun startHome(): ActivityController<MainActivity> {
-        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
-        val root = controller.get().findViewById<View>(R.id.home_root)
-        root.measure(
-            MeasureSpec.makeMeasureSpec(WIDTH_PX, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(HEIGHT_PX, MeasureSpec.EXACTLY),
-        )
-        root.layout(0, 0, WIDTH_PX, HEIGHT_PX)
-        shadowOf(Looper.getMainLooper()).idle()
-        return controller
-    }
+    private fun startHome(): ActivityController<MainActivity> = HomeScreen.launch()
 
-    /** The labels the drawer would lay out, across every page. */
-    private fun shownLabels(activity: MainActivity): List<String> {
-        val pager = activity.findViewById<ViewPager2>(R.id.drawer_pager)
-        val adapter = pager.adapter as? DrawerPagerAdapter ?: return emptyList()
-        val drawer = adapter.drawer
-        return (0 until drawer.pageCount).flatMap { drawer.page(it) }.map { it.label }
-    }
+    private fun shownLabels(activity: MainActivity) = HomeScreen.shownLabels(activity)
 
-    private companion object {
-        const val WIDTH_PX = 1080
-        const val HEIGHT_PX = 1920
-    }
-
-    private fun addLauncherActivity(packageName: String, label: String) {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val resolveInfo = ResolveInfo().apply {
-            activityInfo = ActivityInfo().apply {
-                this.packageName = packageName
-                name = "$packageName.Main"
-                applicationInfo = ApplicationInfo().apply { this.packageName = packageName }
-                nonLocalizedLabel = label
-            }
-        }
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        shadowOf(context.packageManager).addResolveInfoForIntent(intent, resolveInfo)
-    }
+    private fun addLauncherActivity(packageName: String, label: String) =
+        HomeScreen.addLauncherActivity(packageName, label)
 }
