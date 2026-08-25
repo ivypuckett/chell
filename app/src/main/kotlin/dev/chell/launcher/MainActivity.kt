@@ -8,6 +8,8 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -30,6 +32,15 @@ class MainActivity : ComponentActivity() {
     private lateinit var pager: ViewPager2
     private lateinit var emptyMessage: TextView
     private lateinit var searchField: EditText
+    private lateinit var pageIndicator: LinearLayout
+
+    /**
+     * Holds the pager and the empty message. Sizing and the initial load hang
+     * off this rather than off the pager: the pager is hidden whenever there is
+     * nothing to show, and a hidden view is never laid out, so waiting on it
+     * could wait forever.
+     */
+    private lateinit var gridContainer: FrameLayout
 
     private val iconCache = mutableMapOf<String, Drawable?>()
 
@@ -54,7 +65,13 @@ class MainActivity : ComponentActivity() {
         pager = findViewById(R.id.drawer_pager)
         emptyMessage = findViewById(R.id.empty_message)
         searchField = findViewById(R.id.search_field)
+        pageIndicator = findViewById(R.id.page_indicator)
+        gridContainer = findViewById(R.id.grid_container)
         repository = AndroidAppRepository(this)
+
+        pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) = markCurrentPage(position)
+        })
 
         // A new query starts at the first page of its own results.
         searchField.doAfterTextChanged { showApps(keepPage = false) }
@@ -68,16 +85,16 @@ class MainActivity : ComponentActivity() {
             }
         })
 
-        // The grid is sized from the pager's measured bounds, so the first load
-        // waits for layout.
-        pager.doOnLayout { loadApps() }
+        // The grid is sized from the container's measured bounds, so the first
+        // load waits for layout.
+        gridContainer.doOnLayout { loadApps() }
 
         // The pager shrinks when the keyboard opens over the search field, which
         // fits fewer rows. Re-page whenever that changes the grid; re-rendering
         // in place would reenter the layout pass, so hand it to the next frame.
-        pager.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        gridContainer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             if (allApps.isNotEmpty() && gridMetrics() != currentMetrics) {
-                pager.post { if (gridMetrics() != currentMetrics) showApps() }
+                gridContainer.post { if (gridMetrics() != currentMetrics) showApps() }
             }
         }
     }
@@ -121,6 +138,7 @@ class MainActivity : ComponentActivity() {
             pager.visibility = View.GONE
             emptyMessage.setText(if (allApps.isEmpty()) R.string.no_apps else R.string.no_matches)
             emptyMessage.visibility = View.VISIBLE
+            buildPageIndicator(pageCount = 0)
             return
         }
         pager.visibility = View.VISIBLE
@@ -138,15 +156,47 @@ class MainActivity : ComponentActivity() {
             onClick = ::launch,
         )
         pager.setCurrentItem(targetPage, false)
+
+        // setCurrentItem does not fire onPageSelected when the page is already
+        // the current one, so the dots are built for the page just chosen.
+        buildPageIndicator(drawer.pageCount)
+        markCurrentPage(targetPage)
     }
 
-    /** Derives the grid from the pager's measured size and the cell dimensions. */
+    /** One dot per page; a single page needs no indicator at all. */
+    private fun buildPageIndicator(pageCount: Int) {
+        pageIndicator.removeAllViews()
+        if (pageCount <= 1) {
+            pageIndicator.visibility = View.GONE
+            return
+        }
+        pageIndicator.visibility = View.VISIBLE
+        val size = resources.getDimensionPixelSize(R.dimen.page_dot_size)
+        val spacing = resources.getDimensionPixelSize(R.dimen.page_dot_spacing)
+        repeat(pageCount) {
+            val dot = View(this)
+            dot.setBackgroundResource(R.drawable.page_dot)
+            dot.layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                marginStart = spacing
+                marginEnd = spacing
+            }
+            pageIndicator.addView(dot)
+        }
+    }
+
+    private fun markCurrentPage(position: Int) {
+        for (i in 0 until pageIndicator.childCount) {
+            pageIndicator.getChildAt(i).isSelected = i == position
+        }
+    }
+
+    /** Derives the grid from the container's measured size and the cell dimensions. */
     private fun gridMetrics(): GridMetrics {
         // The padding lives on each page (page_apps.xml), not on the pager.
         val pagePadding = resources.getDimensionPixelSize(R.dimen.app_page_vertical_padding)
         return GridMetrics.fit(
-            availableWidth = pager.width,
-            availableHeight = pager.height - 2 * pagePadding,
+            availableWidth = gridContainer.width,
+            availableHeight = gridContainer.height - 2 * pagePadding,
             cellWidth = resources.getDimensionPixelSize(R.dimen.app_cell_width),
             cellHeight = resources.getDimensionPixelSize(R.dimen.app_cell_height),
         )

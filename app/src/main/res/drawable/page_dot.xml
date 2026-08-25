@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One indicator dot. The current page's dot is the opaque one; the rest are
+     dimmed, so the marker reads at a glance without a second colour. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="oval">
+            <solid android:color="@android:color/white" />
+            <size
+                android:width="@dimen/page_dot_size"
+                android:height="@dimen/page_dot_size" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#61FFFFFF" />
+            <size
+                android:width="@dimen/page_dot_size"
+                android:height="@dimen/page_dot_size" />
+        </shape>
+    </item>
+</selector>

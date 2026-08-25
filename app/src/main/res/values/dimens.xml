@@ -12,4 +12,8 @@
     <dimen name="app_icon_size">48dp</dimen>
 
     <dimen name="search_field_margin">16dp</dimen>
+
+    <dimen name="page_dot_size">8dp</dimen>
+    <dimen name="page_dot_spacing">6dp</dimen>
+    <dimen name="page_indicator_padding">16dp</dimen>
 </resources>

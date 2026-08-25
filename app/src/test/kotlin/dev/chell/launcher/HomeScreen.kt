@@ -51,6 +51,13 @@ object HomeScreen {
         return (0 until drawer.pageCount).flatMap { drawer.page(it) }.map { it.label }
     }
 
+    /** Swipes to [index] and lets the page-change callbacks run. */
+    fun goToPage(activity: MainActivity, index: Int) {
+        val pager = activity.findViewById<ViewPager2>(R.id.drawer_pager)
+        pager.setCurrentItem(index, false)
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
     fun pageCount(activity: MainActivity): Int {
         val pager = activity.findViewById<ViewPager2>(R.id.drawer_pager)
         return (pager.adapter as? DrawerPagerAdapter)?.drawer?.pageCount ?: 0
