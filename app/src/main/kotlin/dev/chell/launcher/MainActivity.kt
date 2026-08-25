@@ -7,15 +7,18 @@ import android.content.IntentFilter
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.doOnLayout
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import dev.chell.launcher.core.AppDrawer
 import dev.chell.launcher.core.AppInfo
+import dev.chell.launcher.core.AppSearch
 import dev.chell.launcher.core.GridMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,8 +29,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: AndroidAppRepository
     private lateinit var pager: ViewPager2
     private lateinit var emptyMessage: TextView
+    private lateinit var searchField: EditText
 
     private val iconCache = mutableMapOf<String, Drawable?>()
+
+    /** Every installed app; what the grid shows is this filtered by the query. */
+    private var allApps: List<AppInfo> = emptyList()
 
     /** Apps come and go while the launcher is on screen; reload when they do. */
     private val packageChangeReceiver = object : BroadcastReceiver() {
@@ -43,13 +50,19 @@ class MainActivity : ComponentActivity() {
 
         pager = findViewById(R.id.drawer_pager)
         emptyMessage = findViewById(R.id.empty_message)
+        searchField = findViewById(R.id.search_field)
         repository = AndroidAppRepository(this)
+
+        // A new query starts at the first page of its own results.
+        searchField.doAfterTextChanged { showApps(keepPage = false) }
 
         // Launchers sit at the root of the task, so back must not navigate away.
         // Replaces the old onBackPressed() override, which is no longer invoked
         // for predictive back gestures.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() = Unit
+            override fun handleOnBackPressed() {
+                searchField.text.clear()
+            }
         })
 
         // The grid is sized from the pager's measured bounds, so the first load
@@ -71,6 +84,9 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         unregisterReceiver(packageChangeReceiver)
+        // Coming back to the launcher should show the whole drawer, not
+        // whatever was typed before the last app was opened.
+        searchField.text.clear()
     }
 
     private fun loadApps() {
@@ -78,14 +94,20 @@ class MainActivity : ComponentActivity() {
         // PackageManager once per app, which is far too slow for the main
         // thread on a device with a realistic number of apps.
         lifecycleScope.launch {
-            val apps = withContext(Dispatchers.IO) { repository.installedApps() }
-            showApps(apps)
+            allApps = withContext(Dispatchers.IO) { repository.installedApps() }
+            showApps()
         }
     }
 
-    private fun showApps(apps: List<AppInfo>) {
+    /**
+     * Renders [allApps] filtered by the current query. [keepPage] holds the
+     * reader's place across a reload; a changed query resets to page 0.
+     */
+    private fun showApps(keepPage: Boolean = true) {
+        val apps = AppSearch.search(allApps, searchField.text.toString())
         if (apps.isEmpty()) {
             pager.visibility = View.GONE
+            emptyMessage.setText(if (allApps.isEmpty()) R.string.no_apps else R.string.no_matches)
             emptyMessage.visibility = View.VISIBLE
             return
         }
@@ -95,8 +117,7 @@ class MainActivity : ComponentActivity() {
         val metrics = gridMetrics()
         val drawer = AppDrawer(apps, pageSize = metrics.pageSize)
 
-        // Keep the reader on the same page across a reload where possible.
-        val targetPage = pager.currentItem.coerceAtMost(drawer.pageCount - 1)
+        val targetPage = if (keepPage) pager.currentItem.coerceAtMost(drawer.pageCount - 1) else 0
         pager.adapter = DrawerPagerAdapter(
             drawer = drawer,
             columns = metrics.columns,

@@ -1,19 +1,23 @@
 package dev.chell.launcher.core
 
-class AppDrawer(apps: List<AppInfo>, private val pageSize: Int) {
+/**
+ * Splits [apps] into fixed-size pages, in the order given.
+ *
+ * Ordering belongs to the caller: [AppSearch] ranks by relevance, which is not
+ * alphabetical, and re-sorting here would throw that ranking away.
+ */
+class AppDrawer(private val apps: List<AppInfo>, private val pageSize: Int) {
 
     init {
         require(pageSize > 0) { "pageSize must be positive" }
     }
 
-    private val sorted: List<AppInfo> = apps.sortedBy { it.label.lowercase() }
-
-    val pageCount: Int = if (sorted.isEmpty()) 0 else (sorted.size + pageSize - 1) / pageSize
+    val pageCount: Int = if (apps.isEmpty()) 0 else (apps.size + pageSize - 1) / pageSize
 
     fun page(index: Int): List<AppInfo> {
         if (index < 0 || index >= pageCount) throw IndexOutOfBoundsException("index $index out of range [0, $pageCount)")
         val from = index * pageSize
-        val to = minOf(from + pageSize, sorted.size)
-        return sorted.subList(from, to)
+        val to = minOf(from + pageSize, apps.size)
+        return apps.subList(from, to)
     }
 }

@@ -10,7 +10,7 @@ import dev.chell.launcher.core.AppInfo
 
 /** Presents each [AppDrawer] page as a horizontally swipeable grid. */
 class DrawerPagerAdapter(
-    private val drawer: AppDrawer,
+    val drawer: AppDrawer,
     private val columns: Int,
     private val iconFor: (String) -> Drawable?,
     private val onClick: (AppInfo) -> Unit,

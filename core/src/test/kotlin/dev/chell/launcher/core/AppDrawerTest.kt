@@ -33,28 +33,30 @@ class AppDrawerTest {
     }
 
     @Test
-    fun appsAreSortedCaseInsensitively() {
+    fun theGivenOrderIsPreserved() {
+        // Ordering is the caller's decision -- AppSearch ranks by relevance,
+        // which is not alphabetical -- so the drawer only paginates.
         val drawer = AppDrawer(apps, pageSize = 10)
         val labels = drawer.page(0).map { it.label }
-        assertEquals(listOf("Apple", "Banana", "cherry", "Mango", "Zebra"), labels)
+        assertEquals(listOf("Zebra", "Apple", "Mango", "Banana", "cherry"), labels)
     }
 
     @Test
     fun firstPageHasCorrectItems() {
         val drawer = AppDrawer(apps, pageSize = 2)
-        assertEquals(listOf("Apple", "Banana"), drawer.page(0).map { it.label })
+        assertEquals(listOf("Zebra", "Apple"), drawer.page(0).map { it.label })
     }
 
     @Test
     fun secondPageHasCorrectItems() {
         val drawer = AppDrawer(apps, pageSize = 2)
-        assertEquals(listOf("cherry", "Mango"), drawer.page(1).map { it.label })
+        assertEquals(listOf("Mango", "Banana"), drawer.page(1).map { it.label })
     }
 
     @Test
     fun lastPageMayShorter() {
         val drawer = AppDrawer(apps, pageSize = 2)
-        assertEquals(listOf("Zebra"), drawer.page(2).map { it.label })
+        assertEquals(listOf("cherry"), drawer.page(2).map { it.label })
     }
 
     @Test

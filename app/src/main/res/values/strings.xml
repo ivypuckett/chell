@@ -2,5 +2,7 @@
 <resources>
     <string name="app_name">Chell</string>
     <string name="no_apps">No apps found</string>
+    <string name="no_matches">No matches</string>
+    <string name="search_hint">Search apps</string>
     <string name="cannot_launch">Can\'t open %1$s</string>
 </resources>
