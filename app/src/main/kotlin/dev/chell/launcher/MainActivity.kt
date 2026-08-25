@@ -18,10 +18,13 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.doOnLayout
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import dev.chell.launcher.core.AppDrawer
 import dev.chell.launcher.core.AppInfo
 import dev.chell.launcher.core.AppSearch
+import dev.chell.launcher.core.Favorites
 import dev.chell.launcher.core.GridMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -42,6 +45,10 @@ class MainActivity : ComponentActivity() {
      * could wait forever.
      */
     private lateinit var gridContainer: FrameLayout
+    private lateinit var favoritesRow: RecyclerView
+
+    private lateinit var favoritesStore: FavoritesStore
+    private var favorites: Favorites = Favorites()
 
     private val iconCache = mutableMapOf<String, Drawable?>()
 
@@ -68,6 +75,9 @@ class MainActivity : ComponentActivity() {
         searchField = findViewById(R.id.search_field)
         pageIndicator = findViewById(R.id.page_indicator)
         gridContainer = findViewById(R.id.grid_container)
+        favoritesRow = findViewById(R.id.favorites_row)
+        favoritesStore = FavoritesStore(this)
+        favorites = favoritesStore.load()
         repository = AndroidAppRepository(this)
 
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -134,6 +144,10 @@ class MainActivity : ComponentActivity() {
      * reader's place across a reload; a changed query resets to page 0.
      */
     private fun showApps(keepPage: Boolean = true) {
+        val metrics = gridMetrics()
+        currentMetrics = metrics
+        showFavorites(metrics.columns)
+
         val apps = AppSearch.search(allApps, searchField.text.toString())
         if (apps.isEmpty()) {
             pager.visibility = View.GONE
@@ -145,8 +159,6 @@ class MainActivity : ComponentActivity() {
         pager.visibility = View.VISIBLE
         emptyMessage.visibility = View.GONE
 
-        val metrics = gridMetrics()
-        currentMetrics = metrics
         val drawer = AppDrawer(apps, pageSize = metrics.pageSize)
 
         val targetPage = if (keepPage) pager.currentItem.coerceAtMost(drawer.pageCount - 1) else 0
@@ -207,15 +219,49 @@ class MainActivity : ComponentActivity() {
     private fun cachedIcon(packageName: String): Drawable? =
         iconCache.getOrPut(packageName) { repository.icon(packageName) }
 
+    /**
+     * Fills the favorites row with as many pinned apps as fit across it. The
+     * row is a window onto the front of the list, so pinning never has to be
+     * refused; an empty row is hidden rather than left as a gap.
+     */
+    private fun showFavorites(columns: Int) {
+        val pinned = favorites.resolve(allApps, limit = columns)
+        if (pinned.isEmpty()) {
+            favoritesRow.visibility = View.GONE
+            return
+        }
+        favoritesRow.visibility = View.VISIBLE
+        favoritesRow.layoutManager = GridLayoutManager(this, columns)
+        favoritesRow.adapter = AppGridAdapter(pinned, ::cachedIcon, ::launch, ::showAppActions)
+    }
+
+    fun pinToFavorites(packageName: String) {
+        favorites = favorites.pin(packageName)
+        favoritesStore.save(favorites)
+        showFavorites(currentMetrics?.columns ?: 0)
+    }
+
+    fun unpinFromFavorites(packageName: String) {
+        favorites = favorites.unpin(packageName)
+        favoritesStore.save(favorites)
+        showFavorites(currentMetrics?.columns ?: 0)
+    }
+
     /** The menu a long press opens, anchored to the cell that was pressed. */
     private fun showAppActions(app: AppInfo, anchor: View) {
         val menu = PopupMenu(this, anchor)
         menu.inflate(R.menu.app_actions)
+        val pinned = favorites.isPinned(app.packageName)
+        menu.menu.findItem(R.id.action_favorite)
+            .setTitle(if (pinned) R.string.action_unpin else R.string.action_pin)
         // System apps cannot be removed, so do not offer to.
         menu.menu.findItem(R.id.action_uninstall).isVisible =
             !repository.isSystemApp(app.packageName)
         menu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                R.id.action_favorite ->
+                    if (pinned) unpinFromFavorites(app.packageName)
+                    else pinToFavorites(app.packageName)
                 R.id.action_app_info -> startActivity(repository.appInfoIntent(app.packageName))
                 R.id.action_uninstall -> startActivity(repository.uninstallIntent(app.packageName))
                 else -> return@setOnMenuItemClickListener false

@@ -41,4 +41,6 @@ class AppGridAdapter(
     }
 
     override fun getItemCount(): Int = apps.size
+
+    fun appAt(position: Int): AppInfo = apps[position]
 }

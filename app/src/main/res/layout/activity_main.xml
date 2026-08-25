@@ -40,6 +40,13 @@
             android:visibility="gone" />
     </FrameLayout>
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/favorites_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/favorites_row_padding"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/page_indicator"
         android:layout_width="match_parent"
