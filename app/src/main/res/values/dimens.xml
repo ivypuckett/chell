@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- One app cell. The height is applied to item_app so that the row count
+         computed by GridMetrics matches what actually gets laid out. -->
+    <dimen name="app_cell_width">88dp</dimen>
+    <dimen name="app_cell_height">104dp</dimen>
+
+    <!-- Shared by page_apps.xml and MainActivity.gridMetrics(); keeping it in
+         one place stops the layout and the arithmetic from drifting apart. -->
+    <dimen name="app_page_vertical_padding">24dp</dimen>
+
+    <dimen name="app_icon_size">48dp</dimen>
+</resources>

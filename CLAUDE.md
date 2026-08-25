@@ -107,7 +107,23 @@ automatically; it exits 0 even on failure so the session still starts cleanly.
 
 ```bash
 ./gradlew :core:test          # JVM unit tests – needs a JDK 25 toolchain
+./gradlew :app:testDebugUnitTest   # Robolectric tests (requires Android SDK)
 ./gradlew build               # all modules incl. lint (requires Android SDK)
+```
+
+`:app` tests run on Robolectric, so they need no emulator — but they do need
+the Android SDK. Pure logic belongs in `core`, where tests are cheapest;
+`GridMetrics` lives there for exactly that reason even though only `:app`
+uses it.
+
+### Running on an emulator
+
+```bash
+sdkmanager "emulator" "system-images;android-36;google_apis;x86_64"
+avdmanager create avd -n chell-test -k "system-images;android-36;google_apis;x86_64" -d pixel_6
+emulator -avd chell-test -no-window -no-audio -gpu swiftshader_indirect
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell cmd package set-home-activity dev.chell.launcher/.MainActivity
 ```
 
 ## Coding conventions
