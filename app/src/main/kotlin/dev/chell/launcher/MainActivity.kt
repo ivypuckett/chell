@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.view.View
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
@@ -18,13 +17,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.doOnLayout
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import dev.chell.launcher.core.AppDrawer
 import dev.chell.launcher.core.AppInfo
 import dev.chell.launcher.core.AppSearch
-import dev.chell.launcher.core.Favorites
 import dev.chell.launcher.core.GridMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,7 +32,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var pager: ViewPager2
     private lateinit var emptyMessage: TextView
     private lateinit var searchField: EditText
-    private lateinit var pageIndicator: LinearLayout
+    private lateinit var pageIndicator: PageIndicator
+    private lateinit var favoritesRow: FavoritesRow
 
     /**
      * Holds the pager and the empty message. Sizing and the initial load hang
@@ -45,10 +42,6 @@ class MainActivity : ComponentActivity() {
      * could wait forever.
      */
     private lateinit var gridContainer: FrameLayout
-    private lateinit var favoritesRow: RecyclerView
-
-    private lateinit var favoritesStore: FavoritesStore
-    private var favorites: Favorites = Favorites()
 
     private val iconCache = mutableMapOf<String, Drawable?>()
 
@@ -73,15 +66,19 @@ class MainActivity : ComponentActivity() {
         pager = findViewById(R.id.drawer_pager)
         emptyMessage = findViewById(R.id.empty_message)
         searchField = findViewById(R.id.search_field)
-        pageIndicator = findViewById(R.id.page_indicator)
         gridContainer = findViewById(R.id.grid_container)
-        favoritesRow = findViewById(R.id.favorites_row)
-        favoritesStore = FavoritesStore(this)
-        favorites = favoritesStore.load()
+        pageIndicator = PageIndicator(findViewById(R.id.page_indicator))
+        favoritesRow = FavoritesRow(
+            view = findViewById(R.id.favorites_row),
+            store = FavoritesStore(this),
+            iconFor = ::cachedIcon,
+            onClick = ::launch,
+            onLongClick = ::showAppActions,
+        )
         repository = AndroidAppRepository(this)
 
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) = markCurrentPage(position)
+            override fun onPageSelected(position: Int) = pageIndicator.markCurrent(position)
         })
 
         // A new query starts at the first page of its own results.
@@ -146,14 +143,14 @@ class MainActivity : ComponentActivity() {
     private fun showApps(keepPage: Boolean = true) {
         val metrics = gridMetrics()
         currentMetrics = metrics
-        showFavorites(metrics.columns)
+        favoritesRow.show(allApps, metrics.columns)
 
         val apps = AppSearch.search(allApps, searchField.text.toString())
         if (apps.isEmpty()) {
             pager.visibility = View.GONE
             emptyMessage.setText(if (allApps.isEmpty()) R.string.no_apps else R.string.no_matches)
             emptyMessage.visibility = View.VISIBLE
-            buildPageIndicator(pageCount = 0)
+            pageIndicator.setPageCount(0)
             return
         }
         pager.visibility = View.VISIBLE
@@ -173,35 +170,8 @@ class MainActivity : ComponentActivity() {
 
         // setCurrentItem does not fire onPageSelected when the page is already
         // the current one, so the dots are built for the page just chosen.
-        buildPageIndicator(drawer.pageCount)
-        markCurrentPage(targetPage)
-    }
-
-    /** One dot per page; a single page needs no indicator at all. */
-    private fun buildPageIndicator(pageCount: Int) {
-        pageIndicator.removeAllViews()
-        if (pageCount <= 1) {
-            pageIndicator.visibility = View.GONE
-            return
-        }
-        pageIndicator.visibility = View.VISIBLE
-        val size = resources.getDimensionPixelSize(R.dimen.page_dot_size)
-        val spacing = resources.getDimensionPixelSize(R.dimen.page_dot_spacing)
-        repeat(pageCount) {
-            val dot = View(this)
-            dot.setBackgroundResource(R.drawable.page_dot)
-            dot.layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                marginStart = spacing
-                marginEnd = spacing
-            }
-            pageIndicator.addView(dot)
-        }
-    }
-
-    private fun markCurrentPage(position: Int) {
-        for (i in 0 until pageIndicator.childCount) {
-            pageIndicator.getChildAt(i).isSelected = i == position
-        }
+        pageIndicator.setPageCount(drawer.pageCount)
+        pageIndicator.markCurrent(targetPage)
     }
 
     /** Derives the grid from the container's measured size and the cell dimensions. */
@@ -219,39 +189,15 @@ class MainActivity : ComponentActivity() {
     private fun cachedIcon(packageName: String): Drawable? =
         iconCache.getOrPut(packageName) { repository.icon(packageName) }
 
-    /**
-     * Fills the favorites row with as many pinned apps as fit across it. The
-     * row is a window onto the front of the list, so pinning never has to be
-     * refused; an empty row is hidden rather than left as a gap.
-     */
-    private fun showFavorites(columns: Int) {
-        val pinned = favorites.resolve(allApps, limit = columns)
-        if (pinned.isEmpty()) {
-            favoritesRow.visibility = View.GONE
-            return
-        }
-        favoritesRow.visibility = View.VISIBLE
-        favoritesRow.layoutManager = GridLayoutManager(this, columns)
-        favoritesRow.adapter = AppGridAdapter(pinned, ::cachedIcon, ::launch, ::showAppActions)
-    }
+    fun pinToFavorites(packageName: String) = favoritesRow.pin(packageName)
 
-    fun pinToFavorites(packageName: String) {
-        favorites = favorites.pin(packageName)
-        favoritesStore.save(favorites)
-        showFavorites(currentMetrics?.columns ?: 0)
-    }
-
-    fun unpinFromFavorites(packageName: String) {
-        favorites = favorites.unpin(packageName)
-        favoritesStore.save(favorites)
-        showFavorites(currentMetrics?.columns ?: 0)
-    }
+    fun unpinFromFavorites(packageName: String) = favoritesRow.unpin(packageName)
 
     /** The menu a long press opens, anchored to the cell that was pressed. */
     private fun showAppActions(app: AppInfo, anchor: View) {
         val menu = PopupMenu(this, anchor)
         menu.inflate(R.menu.app_actions)
-        val pinned = favorites.isPinned(app.packageName)
+        val pinned = favoritesRow.isPinned(app.packageName)
         menu.menu.findItem(R.id.action_favorite)
             .setTitle(if (pinned) R.string.action_unpin else R.string.action_pin)
         // System apps cannot be removed, so do not offer to.
