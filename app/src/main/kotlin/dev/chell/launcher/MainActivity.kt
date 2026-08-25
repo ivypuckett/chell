@@ -193,6 +193,8 @@ class MainActivity : ComponentActivity() {
 
     fun unpinFromFavorites(packageName: String) = favoritesRow.unpin(packageName)
 
+    fun moveFavorite(from: Int, to: Int) = favoritesRow.move(from, to)
+
     /** The menu a long press opens, anchored to the cell that was pressed. */
     private fun showAppActions(app: AppInfo, anchor: View) {
         val menu = PopupMenu(this, anchor)

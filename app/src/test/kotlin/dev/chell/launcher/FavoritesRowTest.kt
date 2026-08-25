@@ -67,6 +67,50 @@ class FavoritesRowTest {
         assertEquals(emptyList<String>(), store().load().packageNames)
     }
 
+    @Test
+    fun `dragging a favorite reorders the row and saves the order`() {
+        store().save(Favorites().pin("com.example.beta").pin("com.example.alpha"))
+        val activity = HomeScreen.launch().get()
+        assertEquals(listOf("Alpha", "Beta"), rowLabels(activity))
+
+        activity.moveFavorite(0, 1)
+
+        assertEquals(listOf("Beta", "Alpha"), rowLabels(activity))
+        assertEquals(
+            listOf("com.example.beta", "com.example.alpha"),
+            store().load().packageNames,
+        )
+    }
+
+    @Test
+    fun `a dragged order survives a restart`() {
+        store().save(Favorites().pin("com.example.beta").pin("com.example.alpha"))
+        val activity = HomeScreen.launch().get()
+        activity.moveFavorite(0, 1)
+
+        assertEquals(listOf("Beta", "Alpha"), rowLabels(HomeScreen.launch().get()))
+    }
+
+    @Test
+    fun `dragging leaves a favorite that is not installed where it was`() {
+        // com.example.gone is pinned between the two, but never shown, so the
+        // drag cannot have addressed it -- it keeps its slot.
+        store().save(
+            Favorites()
+                .pin("com.example.beta")
+                .pin("com.example.gone")
+                .pin("com.example.alpha"),
+        )
+        val activity = HomeScreen.launch().get()
+
+        activity.moveFavorite(0, 1)
+
+        assertEquals(
+            listOf("com.example.beta", "com.example.gone", "com.example.alpha"),
+            store().load().packageNames,
+        )
+    }
+
     private fun store() =
         FavoritesStore(ApplicationProvider.getApplicationContext<Context>())
 

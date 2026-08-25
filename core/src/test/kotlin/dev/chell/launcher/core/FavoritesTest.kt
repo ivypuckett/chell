@@ -81,4 +81,43 @@ class FavoritesTest {
 
         assertEquals(emptyList<AppInfo>(), favorites.resolve(apps, limit = 0))
     }
+
+    @Test
+    fun reorderRearrangesTheVisibleApps() {
+        val favorites = Favorites(listOf("com.a", "com.b", "com.c"))
+
+        val moved = favorites.reorder(listOf("com.c", "com.a", "com.b"))
+
+        assertEquals(listOf("com.c", "com.a", "com.b"), moved.packageNames)
+    }
+
+    @Test
+    fun reorderLeavesAppsBeyondTheRowAlone() {
+        val favorites = Favorites(listOf("com.a", "com.b", "com.c", "com.d"))
+
+        // Only the first three fit across the row; com.d was never dragged.
+        val moved = favorites.reorder(listOf("com.b", "com.a", "com.c"))
+
+        assertEquals(listOf("com.b", "com.a", "com.c", "com.d"), moved.packageNames)
+    }
+
+    @Test
+    fun reorderKeepsTheSlotOfAnUninstalledApp() {
+        // com.gone is pinned but not installed, so the row never showed it and
+        // the drag could not have addressed it. It keeps its slot.
+        val favorites = Favorites(listOf("com.a", "com.gone", "com.b"))
+
+        val moved = favorites.reorder(listOf("com.b", "com.a"))
+
+        assertEquals(listOf("com.b", "com.gone", "com.a"), moved.packageNames)
+    }
+
+    @Test
+    fun reorderIgnoresAppsThatAreNotPinned() {
+        val favorites = Favorites(listOf("com.a", "com.b"))
+
+        val moved = favorites.reorder(listOf("com.b", "com.stranger", "com.a"))
+
+        assertEquals(listOf("com.b", "com.a"), moved.packageNames)
+    }
 }

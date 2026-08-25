@@ -11,11 +11,14 @@ import dev.chell.launcher.core.AppInfo
 
 /** Binds the apps of a single drawer page into a grid. */
 class AppGridAdapter(
-    private val apps: List<AppInfo>,
+    apps: List<AppInfo>,
     private val iconFor: (String) -> Drawable?,
     private val onClick: (AppInfo) -> Unit,
     private val onLongClick: (AppInfo, View) -> Unit,
 ) : RecyclerView.Adapter<AppGridAdapter.AppViewHolder>() {
+
+    /** Mutable so a drag can reorder the cells in place. */
+    private val apps = apps.toMutableList()
 
     class AppViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val icon: ImageView = view.findViewById(R.id.app_icon)
@@ -43,4 +46,13 @@ class AppGridAdapter(
     override fun getItemCount(): Int = apps.size
 
     fun appAt(position: Int): AppInfo = apps[position]
+
+    /** The order the cells are in, which a drag rewrites as it goes. */
+    fun order(): List<String> = apps.map { it.packageName }
+
+    /** Moves a cell during a drag. The caller persists the result. */
+    fun move(from: Int, to: Int) {
+        apps.add(to, apps.removeAt(from))
+        notifyItemMoved(from, to)
+    }
 }

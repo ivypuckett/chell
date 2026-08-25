@@ -22,6 +22,27 @@ class Favorites(packageNames: List<String> = emptyList()) {
     fun isPinned(packageName: String): Boolean = packageName in packageNames
 
     /**
+     * The same pinned apps, with [visibleOrder] rearranged into the slots those
+     * packages already occupy.
+     *
+     * The row only ever shows a window onto the front of the list, and
+     * [resolve] skips packages that are not installed, so a position in the row
+     * is not a position in this list. Rewriting slots rather than moving
+     * entries means a drag reorders exactly what the user can see: anything
+     * uninstalled, or off the end of the row, keeps the place it had.
+     *
+     * Packages that are not pinned are ignored.
+     */
+    fun reorder(visibleOrder: List<String>): Favorites {
+        val moving = visibleOrder.filter { it in packageNames }.distinct()
+        val slots = packageNames.indices.filter { packageNames[it] in moving }
+        if (slots.size != moving.size) return this
+        val reordered = packageNames.toMutableList()
+        slots.forEachIndexed { i, slot -> reordered[slot] = moving[i] }
+        return Favorites(reordered)
+    }
+
+    /**
      * The pinned apps as [AppInfo], in pinned order, at most [limit] of them.
      *
      * Packages that are no longer installed are skipped rather than dropped
