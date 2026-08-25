@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Everything the launcher draws is white, which a pale wallpaper would
+         swallow. A scrim this light still reads as "the wallpaper is showing"
+         while keeping labels legible over the worst of them. -->
+    <color name="home_scrim">#59000000</color>
+</resources>
