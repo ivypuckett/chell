@@ -15,6 +15,20 @@ vars:
   ADB: '{{.ANDROID_HOME}}/platform-tools/adb'
   EMULATOR: '{{.ANDROID_HOME}}/emulator/emulator'
 
+  # Starting a second emulator on the same AVD does not merely fail: the new
+  # process goes FATAL *and* shuts the running one down, so one stray `task
+  # emu` leaves you with no emulator at all. Bail out before that.
+  #
+  # Matched on the AVD name so another AVD is not mistaken for this one, and
+  # on the qemu process rather than `adb devices` because adb does not know
+  # which AVD a device is, and lags a second or two behind the process. The
+  # bracket around [q] keeps pgrep from matching this command's own shell.
+  RUNNING_GUARD: |
+    if pgrep -f "[q]emu-system.*-avd {{.AVD}}" > /dev/null; then
+      echo "an emulator for {{.AVD}} is already running; leaving it alone"
+      exit 0
+    fi
+
 tasks:
   default:
     desc: List available tasks
@@ -70,32 +84,49 @@ tasks:
   # ── Emulator ────────────────────────────────────────────────────────────
   emu:
     desc: Start the emulator in a window
+    silent: true
     cmds:
-      # setsid, not just `&`: task kills its whole process group on exit, which
-      # takes the emulator down with it. A new session detaches it.
-      - >
-        DISPLAY="${DISPLAY:-:0}" setsid --fork "{{.EMULATOR}}" -avd {{.AVD}}
-        -no-audio -no-boot-anim -gpu swiftshader_indirect
-        > /tmp/chell-emulator.log 2>&1 < /dev/null
-      - echo "emulator starting; run 'task emu:wait' to block until it is ready"
+      - |
+        {{.RUNNING_GUARD}}
+        # setsid, not just `&`: task kills its whole process group on exit,
+        # which takes the emulator down with it. A new session detaches it.
+        DISPLAY="${DISPLAY:-:0}" setsid --fork "{{.EMULATOR}}" -avd {{.AVD}} \
+          -no-audio -no-boot-anim -gpu swiftshader_indirect \
+          > /tmp/chell-emulator.log 2>&1 < /dev/null
+        echo "emulator starting; run 'task emu:wait' to block until it is ready"
 
   emu:headless:
     desc: Start the emulator with no window (for CI or scripted checks)
+    silent: true
     cmds:
-      # See the note on `emu` about setsid.
-      - >
-        setsid --fork "{{.EMULATOR}}" -avd {{.AVD}} -no-window -no-audio -no-boot-anim
-        -gpu swiftshader_indirect > /tmp/chell-emulator.log 2>&1 < /dev/null
-      - echo "emulator starting; run 'task emu:wait' to block until it is ready"
+      - |
+        {{.RUNNING_GUARD}}
+        # See the note on `emu` about setsid.
+        setsid --fork "{{.EMULATOR}}" -avd {{.AVD}} -no-window -no-audio -no-boot-anim \
+          -gpu swiftshader_indirect > /tmp/chell-emulator.log 2>&1 < /dev/null
+        echo "emulator starting; run 'task emu:wait' to block until it is ready"
 
   emu:wait:
     desc: Block until the emulator has finished booting
+    silent: true
+    vars:
+      TIMEOUT: '{{.TIMEOUT | default 300}}'
     cmds:
-      - '"{{.ADB}}" wait-for-device'
-      - >
-        until [ "$("{{.ADB}}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ];
-        do sleep 3; done
-      - echo "emulator ready"
+      # Deliberately not `adb wait-for-device`: that blocks forever when no
+      # emulator is coming, which reads as a hang rather than as the mistake it
+      # usually is. Polling getprop covers the missing-device case too, since
+      # it fails and returns nothing.
+      - |
+        deadline=$(( $(date +%s) + {{.TIMEOUT}} ))
+        until [ "$("{{.ADB}}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+          if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "no emulator booted within {{.TIMEOUT}}s -- is one running?" >&2
+            echo "try 'task emu', and see /tmp/chell-emulator.log" >&2
+            exit 1
+          fi
+          sleep 3
+        done
+        echo "emulator ready"
 
   emu:stop:
     desc: Shut the emulator down cleanly, preserving its state
