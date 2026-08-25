@@ -38,6 +38,8 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation("androidx.activity:activity-ktx:1.13.0")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
     implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.appcompat:appcompat:1.8.0")
 }
