@@ -126,6 +126,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell cmd package set-home-activity dev.chell.launcher/.MainActivity
 ```
 
+## Git workflow
+
+**Commit directly to `main`. Do not create branches**, and do not open pull
+requests for ordinary work — commit to `main` and push.
+
 ## Coding conventions
 
 * Files must stay under 400 lines.
