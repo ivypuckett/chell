@@ -14,6 +14,7 @@ class DrawerPagerAdapter(
     private val columns: Int,
     private val iconFor: (String) -> Drawable?,
     private val onClick: (AppInfo) -> Unit,
+    private val onLongClick: (AppInfo, android.view.View) -> Unit,
 ) : RecyclerView.Adapter<DrawerPagerAdapter.PageViewHolder>() {
 
     class PageViewHolder(val grid: RecyclerView) : RecyclerView.ViewHolder(grid)
@@ -26,7 +27,8 @@ class DrawerPagerAdapter(
     }
 
     override fun onBindViewHolder(holder: PageViewHolder, position: Int) {
-        holder.grid.adapter = AppGridAdapter(drawer.page(position), iconFor, onClick)
+        holder.grid.adapter =
+            AppGridAdapter(drawer.page(position), iconFor, onClick, onLongClick)
     }
 
     override fun getItemCount(): Int = drawer.pageCount

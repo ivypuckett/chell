@@ -10,6 +10,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -154,6 +155,7 @@ class MainActivity : ComponentActivity() {
             columns = metrics.columns,
             iconFor = ::cachedIcon,
             onClick = ::launch,
+            onLongClick = ::showAppActions,
         )
         pager.setCurrentItem(targetPage, false)
 
@@ -204,6 +206,24 @@ class MainActivity : ComponentActivity() {
 
     private fun cachedIcon(packageName: String): Drawable? =
         iconCache.getOrPut(packageName) { repository.icon(packageName) }
+
+    /** The menu a long press opens, anchored to the cell that was pressed. */
+    private fun showAppActions(app: AppInfo, anchor: View) {
+        val menu = PopupMenu(this, anchor)
+        menu.inflate(R.menu.app_actions)
+        // System apps cannot be removed, so do not offer to.
+        menu.menu.findItem(R.id.action_uninstall).isVisible =
+            !repository.isSystemApp(app.packageName)
+        menu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_app_info -> startActivity(repository.appInfoIntent(app.packageName))
+                R.id.action_uninstall -> startActivity(repository.uninstallIntent(app.packageName))
+                else -> return@setOnMenuItemClickListener false
+            }
+            true
+        }
+        menu.show()
+    }
 
     private fun launch(app: AppInfo) {
         val intent = repository.launchIntent(app.packageName)

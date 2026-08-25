@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.ResolveInfo
 import android.os.Looper
 import android.view.View
@@ -63,17 +64,37 @@ object HomeScreen {
         return (pager.adapter as? DrawerPagerAdapter)?.drawer?.pageCount ?: 0
     }
 
-    fun addLauncherActivity(packageName: String, label: String) {
+    /** Registers a launcher activity whose package is flagged as system. */
+    fun addSystemApp(packageName: String, label: String) {
+        addLauncherActivity(packageName, label, ApplicationInfo.FLAG_SYSTEM)
+    }
+
+    fun addLauncherActivity(packageName: String, label: String, flags: Int = 0) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val resolveInfo = ResolveInfo().apply {
             activityInfo = ActivityInfo().apply {
                 this.packageName = packageName
                 name = "$packageName.Main"
-                applicationInfo = ApplicationInfo().apply { this.packageName = packageName }
+                applicationInfo = ApplicationInfo().apply {
+                    this.packageName = packageName
+                    this.flags = flags
+                }
                 nonLocalizedLabel = label
             }
         }
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         shadowOf(context.packageManager).addResolveInfoForIntent(intent, resolveInfo)
+
+        // Resolving the activity is not the same as the package being installed;
+        // isSystemApp reads the installed ApplicationInfo.
+        shadowOf(context.packageManager).installPackage(
+            PackageInfo().apply {
+                this.packageName = packageName
+                applicationInfo = ApplicationInfo().apply {
+                    this.packageName = packageName
+                    this.flags = flags
+                }
+            },
+        )
     }
 }

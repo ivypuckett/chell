@@ -2,8 +2,11 @@ package dev.chell.launcher
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
+import android.provider.Settings
 import dev.chell.launcher.core.AppInfo
 import dev.chell.launcher.core.AppRepository
 
@@ -42,4 +45,25 @@ class AndroidAppRepository(context: Context) : AppRepository {
     /** Returns the intent that starts [packageName], or null if it has none. */
     fun launchIntent(packageName: String): Intent? =
         packageManager.getLaunchIntentForPackage(packageName)
+
+    /** The system's app details screen for [packageName]. */
+    fun appInfoIntent(packageName: String): Intent =
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri(packageName))
+
+    /** The system's uninstall flow for [packageName]. */
+    fun uninstallIntent(packageName: String): Intent =
+        Intent(Intent.ACTION_DELETE, packageUri(packageName))
+
+    /**
+     * Whether [packageName] ships with the system, and so cannot be uninstalled.
+     * An unknown package is reported as not one; there is nothing to offer for
+     * it either way.
+     */
+    fun isSystemApp(packageName: String): Boolean = runCatching {
+        val flags = packageManager.getApplicationInfo(packageName, 0).flags
+        flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+    }.getOrDefault(false)
+
+    private fun packageUri(packageName: String): Uri =
+        Uri.fromParts("package", packageName, null)
 }

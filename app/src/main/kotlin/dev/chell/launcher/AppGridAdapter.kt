@@ -14,6 +14,7 @@ class AppGridAdapter(
     private val apps: List<AppInfo>,
     private val iconFor: (String) -> Drawable?,
     private val onClick: (AppInfo) -> Unit,
+    private val onLongClick: (AppInfo, View) -> Unit,
 ) : RecyclerView.Adapter<AppGridAdapter.AppViewHolder>() {
 
     class AppViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -32,6 +33,11 @@ class AppGridAdapter(
         holder.label.text = app.label
         holder.icon.setImageDrawable(iconFor(app.packageName))
         holder.itemView.setOnClickListener { onClick(app) }
+        holder.itemView.setOnLongClickListener { view ->
+            onLongClick(app, view)
+            // Consume it, or the click listener fires on release as well.
+            true
+        }
     }
 
     override fun getItemCount(): Int = apps.size
