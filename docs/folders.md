@@ -1,7 +1,11 @@
-# Folders
+# Folders — design note
+
+Not implemented. This is the thinking that was done before the work started;
+it is kept because the modelling options below are the expensive part and are
+not recoverable from the git history.
 
 ## Goal
-Tasks 013-016 made both containers draggable and gave a drag two ways to leave
+Earlier work made both containers draggable and gave a drag two ways to leave
 the container it started in -- sideways to the next page, up or down between
 the drawer and the favourites row. The gesture still missing is dropping one
 cell *onto* another: hold a dragged app over another app and the two become a
@@ -72,19 +76,16 @@ rather than layering more onto option 1 later.
 - Folder naming is a separate concern and is deliberately not in the acceptance
   criteria above. Auto-name from nothing, and add renaming later only if it is
   asked for -- the guide says add no feature beyond what is needed.
-- `MainActivity` is at 298 lines against the 400-line cap and this will not fit
-  inside it. Split it first (task 012 did this once already); the drag and
-  edge-hold handling is the seam.
+- `MainActivity` is at 298 lines and already owns the pager, search, and the
+  drag handling; this will not fit inside it. Split it first -- it was split
+  once before, and the drag and edge-hold handling is the next seam.
 - Whether a folder can be pinned to the favourites row is open. The row
   resolves package names through `Favorites.resolve`, so a folder there means
-  the same model question a second time. Suggested: no, not in this task.
+  the same model question a second time. Suggested: no, not in this change.
 
 ## Testing note
-The grouping model belongs in `core` where it is cheap to test -- combining,
-dissolving at one member, and what happens to a group when a member is
+The grouping model belongs in the `core` package where it is cheap to test --
+combining, dissolving at one member, and what happens to a group when a member is
 uninstalled. The gesture plumbing (the hold timer, `canDropOver`) is
 `ItemTouchHelper` geometry and will have to be verified on the emulator, the
-same as tasks 015 and 016.
-
-## Status
-New
+same as the drag work that preceded it.

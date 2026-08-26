@@ -3,8 +3,7 @@
 ## Quick start
 
 Common commands are wrapped in `Taskfile.yml` (go-task). Run `task` to list
-them. Note that this is unrelated to the `tasks/` directory, which is the
-work-item backlog, not runnable commands.
+them.
 
 ```bash
 task test      # unit tests
@@ -27,7 +26,7 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 |------|-----------|
 | `app/` | The launcher – the only module |
 | `app/src/main/kotlin/dev/chell/launcher/core/` | Domain logic, deliberately free of Android imports |
-| `tasks/` | Work-item backlog (new → reviewed → done) |
+| `docs/` | Design notes for work not yet done |
 | `scripts/` | Helper scripts |
 
 ## Toolchain versions
@@ -132,6 +131,8 @@ requests for ordinary work — commit to `main` and push.
 
 ## Coding conventions
 
-* Files must stay under 400 lines.
+* A class owns one thing. Split it when it starts owning two — a file that has
+  grown past a few hundred lines has usually done exactly that. (This replaces
+  a hard 400-line ceiling: the number was arbitrary, the pressure was not.)
 * Prefer standard algorithms, design patterns, and packages.
 * Keep footprint low – add no feature beyond what is explicitly needed.
