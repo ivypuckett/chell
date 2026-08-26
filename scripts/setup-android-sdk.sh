@@ -12,12 +12,6 @@
 # as root.  Those packages cap out at platform 34 / build-tools 34.0.0, which is
 # below the compileSdk this project targets, so it now drives Google's own
 # sdkmanager instead.
-#
-# Network note (Anthropic cloud sessions)
-# ────────────────────────────────────────
-# In Anthropic-hosted Claude Code sessions, dl.google.com may not be in the
-# egress proxy's allowed hosts list.  This script detects that early and exits
-# rather than spending minutes on a doomed download.
 
 set -euo pipefail
 
@@ -41,30 +35,10 @@ fi
 echo "Installing Android SDK (platform-$PLATFORM_VERSION, build-tools-$BUILD_TOOLS_VERSION)…"
 echo "Target directory: $ANDROID_SDK_ROOT"
 
-# ── Pre-flight: check dl.google.com is reachable ──────────────────────────────
-# NOTE: probe a real file, not the directory itself.  Google does not serve
-# directory listings, so "https://dl.google.com/android/repository/" returns 404
-# even where the host is fully reachable — an earlier version of this check used
-# that URL and therefore always reported the host as blocked.
-REPO_PROBE_URL="https://dl.google.com/android/repository/repository2-3.xml"
-echo "Checking connectivity to dl.google.com…"
-if ! curl -fsS --max-time 10 \
-       ${https_proxy:+--proxy "$https_proxy"} \
-       -o /dev/null \
-       "$REPO_PROBE_URL" 2>/dev/null; then
-  echo "dl.google.com is not accessible from this environment." >&2
-  echo "The Android SDK cannot be installed without access to dl.google.com." >&2
-  echo "Options:" >&2
-  echo "  • Build :app locally where dl.google.com is reachable." >&2
-  echo "  • Run in a CI environment with unrestricted internet access." >&2
-  echo "  • Only :core can be built/tested here (no Android SDK required)." >&2
-  exit 1
-fi
-
 # ── A JDK is required to run sdkmanager ──────────────────────────────────────
 if ! command -v java > /dev/null 2>&1; then
   echo "java not found on PATH; sdkmanager cannot run." >&2
-  echo "Install a JDK first (see the JDK requirement section in CLAUDE.md)." >&2
+  echo "Install a JDK first." >&2
   exit 1
 fi
 
@@ -76,7 +50,6 @@ if [ ! -x "$SDKMANAGER" ]; then
 
   echo "Downloading $ZIP_NAME…"
   curl -fsSL --max-time 300 \
-    ${https_proxy:+--proxy "$https_proxy"} \
     -o "$TMP_DIR/$ZIP_NAME" \
     "https://dl.google.com/android/repository/$ZIP_NAME"
 

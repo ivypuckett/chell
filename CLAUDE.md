@@ -94,18 +94,7 @@ unzip -p core-1.18.0.aar META-INF/com/android/build/gradle/aar-metadata.properti
 ### Network requirements
 
 The setup script downloads from `dl.google.com`, and Gradle resolves AGP and
-AndroidX from there too. Where that host is blocked (some sandboxed CI and
-Anthropic-hosted sessions), only `:core` can be built.
-
-The script's pre-flight check probes a **real file**
-(`.../repository/repository2-3.xml`), not the directory
-`https://dl.google.com/android/repository/`. That directory returns **404 in
-every environment** because Google serves no directory listings — an earlier
-version of this check used it and therefore reported the host as unreachable
-*unconditionally*, even with full network access.
-
-The session-start hook (`.claude/hooks/session-start.sh`) attempts the install
-automatically; it exits 0 even on failure so the session still starts cleanly.
+AndroidX from there too. Nothing here builds without reaching that host.
 
 ## Running tests
 
