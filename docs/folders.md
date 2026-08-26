@@ -13,7 +13,13 @@ What actually happened, against the plan:
   leaves a neighbour under the finger to combine with. The target is picked by
   greatest overlap rather than by whose bounds hold the centre.
 * The 600ms hold from `watchEdges` was reused as planned, keyed on a target
-  cell. Both holds share one constant.
+  cell. Both holds share one constant. Reusing it *as written* was the bug that
+  shipped: `watchEdges` starts its timer when the finger enters a margin, but
+  the combine timer was started by a frame in which the finger had stopped --
+  and a finger that has stopped generates no touch events, so no such frame
+  ever arrives. Holding a cell squarely over another one made nothing at all;
+  only a slow creep across it worked. The combine wait is now *restarted* by
+  movement and fires when the movement stops.
 * `MainActivity` was split first, into `DrawerPager`.
 * The dissolve rule ended up in `Folders`' constructor rather than in `remove`,
   which makes "a folder of one is not a folder" true of stored data too.

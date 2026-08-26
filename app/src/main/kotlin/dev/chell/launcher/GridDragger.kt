@@ -53,8 +53,7 @@ class GridDragger(
     private var pendingEdge: Edge? = null
     private var edgeHold: Runnable? = null
 
-    /** The cell a dragged cell is currently being held over, if any. */
-    private var pendingCombine: Int = RecyclerView.NO_POSITION
+    /** The wait for the finger to stop moving over another cell, if running. */
     private var combineHold: Runnable? = null
 
     /**
@@ -221,9 +220,16 @@ class GridDragger(
     /**
      * Fires [onCombineHold] once a cell has been held over another one.
      *
-     * The hold only starts once the finger has stopped: a cell being dragged
-     * across the grid overlaps every cell it passes, and combining with each of
-     * them in turn is not what anyone meant. Any movement restarts the wait.
+     * The wait is restarted by movement rather than started by stillness: a
+     * finger that has stopped produces no more touch events, so this is not
+     * called again either, and a hold that had to be *started* by a still
+     * frame could only ever fire while the finger was still creeping. Parking
+     * a cell squarely on another one and waiting -- the whole gesture -- made
+     * no folder at all. Instead every frame that moves pushes the timer back,
+     * so it runs out exactly when the movement stops.
+     *
+     * The target is read when the timer fires for the same reason [watchEdges]
+     * reads its index then: the cell is still moving while the wait restarts.
      */
     private fun watchCombine(holder: RecyclerView.ViewHolder, dX: Float, dY: Float) {
         val report = onCombineHold ?: return
@@ -233,18 +239,17 @@ class GridDragger(
         if (!dragged) return
 
         settled = moved < SETTLE_SLOP
-        if (!settled) {
-            cancelCombineHold()
-            return
-        }
-        val target = overlappedPosition(holder, dX, dY)
-        if (target == pendingCombine) return
+        if (settled) return
+
         cancelCombineHold()
-        pendingCombine = target
-        if (target == RecyclerView.NO_POSITION) return
         combineHold = Runnable {
             val index = holder.bindingAdapterPosition
-            if (index != RecyclerView.NO_POSITION && index != target) report(index, target)
+            val target = overlappedPosition(holder, lastDX, lastDY)
+            if (index != RecyclerView.NO_POSITION && target != RecyclerView.NO_POSITION &&
+                index != target
+            ) {
+                report(index, target)
+            }
         }.also { handler.postDelayed(it, HOLD_MILLIS) }
     }
 
@@ -292,7 +297,6 @@ class GridDragger(
     private fun cancelCombineHold() {
         combineHold?.let { handler.removeCallbacks(it) }
         combineHold = null
-        pendingCombine = RecyclerView.NO_POSITION
     }
 
     /** The side of its container a dragged cell is being held against. */
