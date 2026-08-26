@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import dev.chell.launcher.core.DrawerItem
@@ -122,6 +123,7 @@ class GridDragger(
          */
         override fun clearView(recycler: RecyclerView, holder: RecyclerView.ViewHolder) {
             super.clearView(recycler, holder)
+            floatOverSiblings(false)
             cancelEdgeHold()
             cancelCombineHold()
             settled = false
@@ -160,7 +162,30 @@ class GridDragger(
         settled = false
         lastDX = 0f
         lastDY = 0f
+        floatOverSiblings(true)
         touchHelper.startDrag(holder)
+    }
+
+    /**
+     * Lifts this grid over its siblings for the length of a drag.
+     *
+     * [ItemTouchHelper] raises the dragged cell above the other cells, but that
+     * only orders it within this [RecyclerView]; a cell carried towards the
+     * favourites row is clipped at the grid's edge and then drawn under the row
+     * itself. Unclipping the ancestors and raising each of them lets the cell
+     * cross the gap on top of whatever it is heading for. Both are undone on
+     * drop: a permanently unclipped pager spills its neighbouring pages over
+     * the row during an ordinary swipe.
+     */
+    private fun floatOverSiblings(lifted: Boolean) {
+        var child: View = view
+        var parent = child.parent
+        while (parent is ViewGroup) {
+            parent.clipChildren = !lifted
+            child.translationZ = if (lifted) DRAG_ELEVATION else 0f
+            child = parent
+            parent = child.parent
+        }
     }
 
     /**
@@ -316,6 +341,13 @@ class GridDragger(
 
         /** Movement per frame below which the finger counts as stopped. */
         private const val SETTLE_SLOP = 1.5f
+
+        /**
+         * How far a dragged grid sits above its siblings. Any positive value
+         * orders it on top, and the views it is lifted over have no elevation
+         * of their own, so one step is enough.
+         */
+        private const val DRAG_ELEVATION = 1f
 
         /** How much of a cell must be covered before it is worth combining with. */
         private const val MIN_OVERLAP = 0.25f

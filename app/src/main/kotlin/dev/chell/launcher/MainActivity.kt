@@ -189,21 +189,21 @@ class MainActivity : ComponentActivity() {
 
     fun moveFavorite(from: Int, to: Int) = favoritesRow.move(from, to)
 
-    /** The menu a long press opens, anchored to the cell that was pressed. */
+    /**
+     * The menu a long press opens, anchored to the cell that was pressed.
+     *
+     * Pinning is not on it: dragging a cell down into the favourites row and
+     * back up out of it is the gesture for both directions, and a menu entry
+     * that does the same thing is a second way to say it.
+     */
     private fun showAppActions(app: AppInfo, anchor: View) {
         val menu = PopupMenu(this, anchor)
         menu.inflate(R.menu.app_actions)
-        val pinned = favoritesRow.isPinned(app.packageName)
-        menu.menu.findItem(R.id.action_favorite)
-            .setTitle(if (pinned) R.string.action_unpin else R.string.action_pin)
         // System apps cannot be removed, so do not offer to.
         menu.menu.findItem(R.id.action_uninstall).isVisible =
             !repository.isSystemApp(app.packageName)
         menu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                R.id.action_favorite ->
-                    if (pinned) unpinFromFavorites(app.packageName)
-                    else pinToFavorites(app.packageName)
                 R.id.action_app_info -> startActivity(repository.appInfoIntent(app.packageName))
                 R.id.action_uninstall -> startActivity(repository.uninstallIntent(app.packageName))
                 else -> return@setOnMenuItemClickListener false
