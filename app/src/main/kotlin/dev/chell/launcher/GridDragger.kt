@@ -28,6 +28,7 @@ class GridDragger(
     private val onMove: (from: Int, to: Int) -> Unit,
     private val onPress: (AppInfo, View) -> Unit,
     private val onEdgeHold: ((index: Int, direction: Int) -> Unit)? = null,
+    directions: Int = SIDEWAYS,
 ) {
 
     /**
@@ -46,7 +47,7 @@ class GridDragger(
     private var pendingEdge = 0
 
     private val callback = object : ItemTouchHelper.SimpleCallback(
-        ItemTouchHelper.START or ItemTouchHelper.END,
+        directions,
         0, // A grid of apps is not a list to swipe things out of.
     ) {
         override fun isLongPressDragEnabled(): Boolean = false
@@ -71,7 +72,7 @@ class GridDragger(
             actionState: Int,
             isCurrentlyActive: Boolean,
         ) {
-            if (isCurrentlyActive && abs(dX) > touchSlop) dragged = true
+            if (isCurrentlyActive && (abs(dX) > touchSlop || abs(dY) > touchSlop)) dragged = true
             if (isCurrentlyActive) watchEdges(holder, dX)
             super.onChildDraw(canvas, recycler, holder, dX, dY, actionState, isCurrentlyActive)
         }
@@ -158,8 +159,14 @@ class GridDragger(
         pendingEdge = 0
     }
 
-    private companion object {
+    companion object {
+        /** A single row: there is nowhere above or below to move a cell to. */
+        const val SIDEWAYS = ItemTouchHelper.START or ItemTouchHelper.END
+
+        /** A grid, where a cell moves in both axes. */
+        const val GRID = SIDEWAYS or ItemTouchHelper.UP or ItemTouchHelper.DOWN
+
         /** Long enough that reaching for the last cell does not flip the page. */
-        const val EDGE_HOLD_MILLIS = 600L
+        private const val EDGE_HOLD_MILLIS = 600L
     }
 }

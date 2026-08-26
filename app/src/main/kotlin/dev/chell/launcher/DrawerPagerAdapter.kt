@@ -48,6 +48,7 @@ class DrawerPagerAdapter(
                 onEdgeHold = onEdgeHold?.let { report ->
                     { index, direction -> report(holder.global(index), direction) }
                 },
+                directions = GridDragger.GRID,
             )
         }
         return holder
