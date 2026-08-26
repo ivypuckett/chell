@@ -9,4 +9,6 @@
     <string name="action_app_info">App info</string>
     <string name="action_uninstall">Uninstall</string>
     <string name="cannot_launch">Can\'t open %1$s</string>
+    <string name="folder">Folder</string>
+    <string name="action_remove_from_folder">Take out of folder</string>
 </resources>

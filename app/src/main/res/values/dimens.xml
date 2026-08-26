@@ -11,6 +11,16 @@
 
     <dimen name="app_icon_size">48dp</dimen>
 
+    <!-- A folder's icon fills the same box an app's icon does, so a folder cell
+         and an app cell are the same size in the grid. -->
+    <dimen name="folder_icon_size">48dp</dimen>
+    <dimen name="folder_plate_radius">12dp</dimen>
+    <dimen name="folder_popup_padding">8dp</dimen>
+
+    <!-- Past this many members the popup would be wider than a phone; the rest
+         wrap onto further rows. -->
+    <integer name="folder_popup_columns">4</integer>
+
     <dimen name="search_field_margin">16dp</dimen>
 
     <dimen name="favorites_row_padding">8dp</dimen>

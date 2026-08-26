@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Darker and more opaque than the home scrim: the popup sits in front of the
+     drawer, and has to separate from it rather than blend into the wallpaper. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/folder_popup_background" />
+    <corners android:radius="@dimen/folder_plate_radius" />
+</shape>

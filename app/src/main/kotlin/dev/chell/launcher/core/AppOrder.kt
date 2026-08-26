@@ -32,9 +32,14 @@ class AppOrder(packageNames: List<String> = emptyList()) {
     }
 
     /**
-     * Moves the app at [from] to [to], both indexes into [apply]'s result.
+     * Moves the cell at [from] to [to], both indexes into [cells].
      *
-     * The whole arrangement is recorded, not just the app that moved: once one
+     * Cells, not apps: a folder is one cell holding several packages, and they
+     * travel together. Writing every cell's packages back out in the cells' new
+     * order is what keeps this flat list agreeing with [Folders] without either
+     * of them knowing about the other.
+     *
+     * The whole arrangement is recorded, not just the cell that moved: once one
      * app has been placed by hand, the alphabetical order the rest were in is
      * a decision too, and a later install must not be able to shuffle them.
      *
@@ -42,10 +47,10 @@ class AppOrder(packageNames: List<String> = emptyList()) {
      * the drawer holds every installed app and there is nothing to anchor it
      * between. Reinstalling puts it at the end, the same as any new app.
      */
-    fun move(apps: List<AppInfo>, from: Int, to: Int): AppOrder {
-        val arranged = apply(apps).map { it.packageName }.toMutableList()
-        if (from !in arranged.indices || to !in arranged.indices || from == to) return this
-        arranged.add(to, arranged.removeAt(from))
-        return AppOrder(arranged)
+    fun move(cells: List<DrawerItem>, from: Int, to: Int): AppOrder {
+        if (from !in cells.indices || to !in cells.indices || from == to) return this
+        val moved = cells.toMutableList()
+        moved.add(to, moved.removeAt(from))
+        return AppOrder(moved.flatMap { it.packageNames })
     }
 }

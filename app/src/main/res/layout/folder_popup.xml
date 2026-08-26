@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The contents of an open folder. Anchored to the folder's cell, the same way
+     the long-press action menu is, so opening one does not take over the
+     screen. Its own background rather than the wallpaper: a popup floating over
+     the drawer needs to read as being in front of it. -->
+<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/folder_grid"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/folder_popup_background"
+    android:padding="@dimen/folder_popup_padding" />

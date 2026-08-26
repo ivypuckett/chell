@@ -4,4 +4,6 @@
          swallow. A scrim this light still reads as "the wallpaper is showing"
          while keeping labels legible over the worst of them. -->
     <color name="home_scrim">#59000000</color>
+
+    <color name="folder_popup_background">#D9202124</color>
 </resources>

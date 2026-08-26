@@ -11,6 +11,7 @@ import android.view.View
 import android.view.View.MeasureSpec
 import androidx.test.core.app.ApplicationProvider
 import androidx.viewpager2.widget.ViewPager2
+import dev.chell.launcher.core.DrawerItem
 import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
@@ -44,12 +45,21 @@ object HomeScreen {
         shadowOf(Looper.getMainLooper()).idle()
     }
 
-    /** The apps the drawer would lay out, in order, across every page. */
+    /**
+     * The cells the drawer would lay out, in order, across every page. An app
+     * is its label; a folder is its members' labels joined, so a test can tell
+     * one cell holding two apps from two cells.
+     */
     fun shownLabels(activity: MainActivity): List<String> {
         val pager = activity.findViewById<ViewPager2>(R.id.drawer_pager)
         val adapter = pager.adapter as? DrawerPagerAdapter ?: return emptyList()
         val drawer = adapter.drawer
-        return (0 until drawer.pageCount).flatMap { drawer.page(it) }.map { it.label }
+        return (0 until drawer.pageCount).flatMap { drawer.page(it) }.map { item ->
+            when (item) {
+                is DrawerItem.App -> item.app.label
+                is DrawerItem.Folder -> item.apps.joinToString("+") { it.label }
+            }
+        }
     }
 
     /** Swipes to [index] and lets the page-change callbacks run. */

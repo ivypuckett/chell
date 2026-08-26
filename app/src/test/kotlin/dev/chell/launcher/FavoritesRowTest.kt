@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ApplicationProvider
+import dev.chell.launcher.core.DrawerItem
 import dev.chell.launcher.core.Favorites
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -142,6 +143,8 @@ class FavoritesRowTest {
 
     private fun rowLabels(activity: MainActivity): List<String> {
         val adapter = row(activity).adapter as? AppGridAdapter ?: return emptyList()
-        return (0 until adapter.itemCount).map { adapter.appAt(it).label }
+        // The row holds apps only, never folders.
+        return (0 until adapter.itemCount)
+            .map { (adapter.itemAt(it) as DrawerItem.App).app.label }
     }
 }

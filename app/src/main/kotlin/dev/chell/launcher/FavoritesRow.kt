@@ -5,6 +5,7 @@ import android.view.View
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import dev.chell.launcher.core.AppInfo
+import dev.chell.launcher.core.DrawerItem
 import dev.chell.launcher.core.Favorites
 
 /**
@@ -32,7 +33,7 @@ class FavoritesRow(
     private val dragger = GridDragger(
         view = view,
         onMove = ::saveOrder,
-        onPress = onLongClick,
+        onPress = { item, anchor -> (item as? DrawerItem.App)?.let { onLongClick(it.app, anchor) } },
         onEdgeHold = ::liftOut,
         directions = GridDragger.SIDEWAYS_OR_OUT,
     )
@@ -55,7 +56,16 @@ class FavoritesRow(
         }
         view.visibility = View.VISIBLE
         view.layoutManager = GridLayoutManager(view.context, columns)
-        view.adapter = AppGridAdapter(pinned, iconFor, onClick, dragger::beginDrag)
+        // The row holds apps only: a folder there would mean resolving package
+        // names to something that is not one, which is the whole modelling
+        // question again. They are wrapped as cells because that is what the
+        // grid adapter binds.
+        view.adapter = AppGridAdapter(
+            items = pinned.map { DrawerItem.App(it) },
+            iconFor = iconFor,
+            onClick = { item, _ -> (item as? DrawerItem.App)?.let { onClick(it.app) } },
+            onLongClick = dragger::beginDrag,
+        )
     }
 
     fun pin(packageName: String) = update(favorites.pin(packageName))
@@ -72,7 +82,7 @@ class FavoritesRow(
         if (edge != GridDragger.Edge.TOP) return
         val adapter = view.adapter as? AppGridAdapter ?: return
         if (index !in 0 until adapter.itemCount) return
-        unpin(adapter.appAt(index).packageName)
+        unpin(adapter.itemAt(index).packageNames.first())
     }
 
     /** Records the order the cells are now in, after one of them has moved. */

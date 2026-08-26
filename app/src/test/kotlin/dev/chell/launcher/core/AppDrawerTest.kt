@@ -16,7 +16,7 @@ class AppDrawerTest {
 
     @Test
     fun emptyListHasZeroPages() {
-        val drawer = AppDrawer(emptyList(), pageSize = 5)
+        val drawer = AppDrawer<AppInfo>(emptyList(), pageSize = 5)
         assertEquals(0, drawer.pageCount)
     }
 

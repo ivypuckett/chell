@@ -3,7 +3,8 @@ package dev.chell.launcher
 import android.content.Context
 
 /**
- * Persists an ordered list of package names.
+ * Persists an ordered list of short strings: package names, and the folder
+ * assignments [FolderStore] keys by them.
  *
  * Stored as one delimited string rather than a string set, because a set has
  * no order and the order is the whole point -- of the favourites row and of

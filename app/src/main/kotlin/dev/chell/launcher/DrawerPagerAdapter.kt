@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import dev.chell.launcher.core.AppDrawer
-import dev.chell.launcher.core.AppInfo
+import dev.chell.launcher.core.DrawerItem
 
 /**
  * Presents each [AppDrawer] page as a horizontally swipeable grid.
@@ -21,14 +21,15 @@ import dev.chell.launcher.core.AppInfo
  * ranked by relevance, and dragging within a ranking would mean nothing.
  */
 class DrawerPagerAdapter(
-    val drawer: AppDrawer,
+    val drawer: AppDrawer<DrawerItem>,
     private val columns: Int,
     private val pageSize: Int,
     private val iconFor: (String) -> Drawable?,
-    private val onClick: (AppInfo) -> Unit,
-    private val onLongClick: (AppInfo, View) -> Unit,
+    private val onClick: (DrawerItem, View) -> Unit,
+    private val onLongClick: (DrawerItem, View) -> Unit,
     private val onMove: ((from: Int, to: Int) -> Unit)? = null,
     private val onEdgeHold: ((index: Int, edge: GridDragger.Edge) -> Unit)? = null,
+    private val onCombine: ((index: Int, target: Int) -> Unit)? = null,
 ) : RecyclerView.Adapter<DrawerPagerAdapter.PageViewHolder>() {
 
     class PageViewHolder(val grid: RecyclerView) : RecyclerView.ViewHolder(grid) {
@@ -47,6 +48,9 @@ class DrawerPagerAdapter(
                 onPress = onLongClick,
                 onEdgeHold = onEdgeHold?.let { report ->
                     { index, edge -> report(holder.global(index), edge) }
+                },
+                onCombineHold = onCombine?.let { report ->
+                    { index, target -> report(holder.global(index), holder.global(target)) }
                 },
                 directions = GridDragger.GRID,
             )

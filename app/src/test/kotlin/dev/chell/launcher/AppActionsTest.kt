@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.widget.FrameLayout
 import androidx.test.core.app.ApplicationProvider
 import dev.chell.launcher.core.AppInfo
+import dev.chell.launcher.core.DrawerItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -70,10 +71,10 @@ class AppActionsTest {
         var launched: AppInfo? = null
         val app = AppInfo("com.example.alpha", "Alpha")
         val adapter = AppGridAdapter(
-            apps = listOf(app),
+            items = listOf(DrawerItem.App(app)),
             iconFor = { null },
-            onClick = { launched = it },
-            onLongClick = { pressed, _ -> longPressed = pressed },
+            onClick = { item, _ -> launched = (item as DrawerItem.App).app },
+            onLongClick = { pressed, _ -> longPressed = (pressed as DrawerItem.App).app },
         )
         val parent = FrameLayout(context)
         val holder = adapter.onCreateViewHolder(parent, 0)

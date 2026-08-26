@@ -13,6 +13,9 @@ class AppOrderTest {
 
     private fun labels(apps: List<AppInfo>) = apps.map { it.label }
 
+    /** The cells [apps] would be shown as under [order], with no folders. */
+    private fun cells(order: AppOrder) = order.apply(apps).map { DrawerItem.App(it) }
+
     @Test
     fun anEmptyOrderLeavesAppsAlone() {
         assertEquals(apps, AppOrder().apply(apps))
@@ -43,7 +46,9 @@ class AppOrderTest {
     @Test
     fun moveRecordsTheWholeArrangement() {
         // Nothing was arranged before, so moving one app freezes the rest.
-        val moved = AppOrder().move(apps, from = 0, to = 2)
+        val order = AppOrder()
+
+        val moved = order.move(cells(order), from = 0, to = 2)
 
         assertEquals(listOf("com.b", "com.c", "com.a"), moved.packageNames)
         assertEquals(listOf("Beta", "Gamma", "Alpha"), labels(moved.apply(apps)))
@@ -54,7 +59,7 @@ class AppOrderTest {
         val order = AppOrder(listOf("com.c", "com.b", "com.a"))
 
         // Index 0 is Gamma once arranged, not Alpha.
-        val moved = order.move(apps, from = 0, to = 1)
+        val moved = order.move(cells(order), from = 0, to = 1)
 
         assertEquals(listOf("com.b", "com.c", "com.a"), moved.packageNames)
     }
@@ -63,19 +68,31 @@ class AppOrderTest {
     fun moveIgnoresIndexesOutsideTheDrawer() {
         val order = AppOrder(listOf("com.a", "com.b", "com.c"))
 
-        assertEquals(order.packageNames, order.move(apps, from = 0, to = 9).packageNames)
-        assertEquals(order.packageNames, order.move(apps, from = -1, to = 1).packageNames)
-        assertEquals(order.packageNames, order.move(apps, from = 1, to = 1).packageNames)
+        assertEquals(order.packageNames, order.move(cells(order), from = 0, to = 9).packageNames)
+        assertEquals(order.packageNames, order.move(cells(order), from = -1, to = 1).packageNames)
+        assertEquals(order.packageNames, order.move(cells(order), from = 1, to = 1).packageNames)
     }
 
     @Test
     fun aNewInstallCannotShuffleAnArrangement() {
-        val arranged = AppOrder().move(apps, from = 2, to = 0)
+        val start = AppOrder()
+        val arranged = start.move(cells(start), from = 2, to = 0)
         val withNewApp = apps + AppInfo("com.new", "Newcomer")
 
         assertEquals(
             listOf("Gamma", "Alpha", "Beta", "Newcomer"),
             labels(arranged.apply(withNewApp)),
         )
+    }
+
+    @Test
+    fun aFolderCellCarriesEveryPackageInIt() {
+        val folder = DrawerItem.Folder("f1", listOf(apps[0], apps[1]))
+        val loose = DrawerItem.App(apps[2])
+
+        // One cell moves, but both of its packages travel with it.
+        val moved = AppOrder().move(listOf(folder, loose), from = 0, to = 1)
+
+        assertEquals(listOf("com.c", "com.a", "com.b"), moved.packageNames)
     }
 }

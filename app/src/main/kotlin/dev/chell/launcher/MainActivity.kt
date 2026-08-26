@@ -17,6 +17,7 @@ import androidx.core.view.doOnLayout
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import dev.chell.launcher.core.AppInfo
+import dev.chell.launcher.core.DrawerItem
 import dev.chell.launcher.core.GridMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var searchField: EditText
     private lateinit var favoritesRow: FavoritesRow
     private lateinit var drawer: DrawerPager
+    private lateinit var folderPopup: FolderPopup
 
     /**
      * Holds the pager and the empty message. Sizing and the initial load hang
@@ -64,14 +66,21 @@ class MainActivity : ComponentActivity() {
             onClick = ::launch,
             onLongClick = ::showAppActions,
         )
+        folderPopup = FolderPopup(
+            iconFor = ::cachedIcon,
+            onClick = ::launch,
+            onRemove = { packageName -> drawer.removeFromFolder(packageName) },
+        )
         drawer = DrawerPager(
             pager = findViewById(R.id.drawer_pager),
             emptyMessage = findViewById(R.id.empty_message),
             pageIndicator = PageIndicator(findViewById(R.id.page_indicator)),
             orderStore = PackageListStore(this, KEY_ORDER),
+            folderStore = FolderStore(this),
             iconFor = ::cachedIcon,
             onClick = ::launch,
             onLongClick = ::showAppActions,
+            onFolderClick = folderPopup::show,
             onDropOut = ::pinDroppedApp,
             rerender = ::showApps,
         )
@@ -116,6 +125,9 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         unregisterReceiver(packageChangeReceiver)
+        // A popup anchored to a cell would be left hanging over a drawer that
+        // is about to be rebuilt.
+        folderPopup.dismiss()
         // Coming back to the launcher should show the whole drawer, not
         // whatever was typed before the last app was opened.
         searchField.text.clear()
@@ -136,6 +148,13 @@ class MainActivity : ComponentActivity() {
         favoritesRow.show(allApps, metrics.columns)
         drawer.show(allApps, searchField.text.toString(), metrics, keepPage)
     }
+
+    fun combineCells(index: Int, target: Int) = drawer.combineCells(index, target)
+
+    fun removeFromFolder(packageName: String) = drawer.removeFromFolder(packageName)
+
+    /** The cells the drawer is showing, which is what a drag's indexes mean. */
+    fun shownItems(): List<DrawerItem> = drawer.shownItems
 
     /** Derives the grid from the container's measured size and the cell dimensions. */
     private fun gridMetrics(): GridMetrics {
