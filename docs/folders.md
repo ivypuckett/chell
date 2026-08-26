@@ -1,8 +1,23 @@
 # Folders — design note
 
-Not implemented. This is the thinking that was done before the work started;
-it is kept because the modelling options below are the expensive part and are
-not recoverable from the git history.
+**Implemented.** Option 1 was taken. This is kept as the record of why, and of
+what was deliberately left out; the notes below are what the work was planned
+against, not a description of the code.
+
+What actually happened, against the plan:
+
+* The combine gesture was the awkward part, as predicted, but `canDropOver` on
+  its own was not the answer. Suppressing the swap needs a condition, and the
+  one that works is *whether the finger is moving*: a drag that keeps going
+  reorders exactly as before, and one that stops does not swap, which is what
+  leaves a neighbour under the finger to combine with. The target is picked by
+  greatest overlap rather than by whose bounds hold the centre.
+* The 600ms hold from `watchEdges` was reused as planned, keyed on a target
+  cell. Both holds share one constant.
+* `MainActivity` was split first, into `DrawerPager`.
+* The dissolve rule ended up in `Folders`' constructor rather than in `remove`,
+  which makes "a folder of one is not a folder" true of stored data too.
+* Search, pinning, and the edge holds are unchanged.
 
 ## Goal
 Earlier work made both containers draggable and gave a drag two ways to leave
