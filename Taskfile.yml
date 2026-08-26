@@ -57,12 +57,7 @@ tasks:
 
   # ── Build & test ────────────────────────────────────────────────────────
   test:
-    desc: Run the pure-JVM core tests (no Android SDK needed)
-    cmds:
-      - ./gradlew :core:test
-
-  test:app:
-    desc: Run the Robolectric tests for :app
+    desc: Run the unit tests
     cmds:
       - ./gradlew :app:testDebugUnitTest
 

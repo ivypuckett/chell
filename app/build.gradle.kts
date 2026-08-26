@@ -41,8 +41,6 @@ android {
 }
 
 dependencies {
-    implementation(project(":core"))
-
     implementation("androidx.activity:activity-ktx:1.13.0")
     implementation("androidx.appcompat:appcompat:1.8.0")
     implementation("androidx.core:core-ktx:1.18.0")
@@ -52,6 +50,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     testImplementation("junit:junit:4.13.2")
+    // The domain tests under dev.chell.launcher.core use kotlin.test.  Named
+    // explicitly because no Kotlin plugin is applied here to supply a version, and
+    // the version must match the Kotlin compiler AGP 9 brings in itself.
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.2.0")
     testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.test:core:1.7.0")
 }

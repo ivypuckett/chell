@@ -7,7 +7,7 @@ them. Note that this is unrelated to the `tasks/` directory, which is the
 work-item backlog, not runnable commands.
 
 ```bash
-task test      # core tests
+task test      # unit tests
 task build     # everything, lint included
 task run       # install, set as home, show it
 task emu       # start the emulator in a window
@@ -16,11 +16,8 @@ task emu       # start the emulator in a window
 Or with Gradle directly:
 
 ```bash
-# Pure JVM, no Android SDK needed (but see JDK note below):
-./gradlew :core:test
-
-# Requires Android SDK (see below):
 export ANDROID_HOME="$HOME/Android/Sdk"
+./gradlew :app:testDebugUnitTest
 ./gradlew :app:assembleDebug
 ```
 
@@ -28,8 +25,8 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 
 | Path | What it is |
 |------|-----------|
-| `core/` | Pure Kotlin/JVM module – no Android deps |
-| `app/` | Android launcher application |
+| `app/` | The launcher – the only module |
+| `app/src/main/kotlin/dev/chell/launcher/core/` | Domain logic, deliberately free of Android imports |
 | `tasks/` | Work-item backlog (new → reviewed → done) |
 | `scripts/` | Helper scripts |
 
@@ -37,33 +34,28 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 
 | Component | Version |
 |-----------|---------|
-| JDK | 25 |
+| JDK | 21 |
 | Gradle | 9.7.1 |
-| Kotlin | 2.4.10 |
+| Kotlin | 2.2.0 (AGP's built-in compiler – not chosen here) |
 | Android Gradle Plugin | 9.3.2 |
 | `compileSdk` / `targetSdk` | 36 |
 | `minSdk` | 26 |
 
-## JDK requirement
+## Kotlin version
 
-`core/build.gradle.kts` declares `jvmToolchain(25)`, so **a JDK 25 must be
-installed — a JRE is not enough** (Gradle needs `javac`). Without one, even
-`./gradlew :core:test` fails with:
+There is one module and no Kotlin Gradle plugin: AGP 9 brings its own Kotlin
+compiler, which is **2.2.0**. Any Kotlin artifact added by hand must match it —
+`kotlin-test-junit` is pinned to 2.2.0 in `app/build.gradle.kts` for exactly
+this reason. A newer one fails the build with:
 
 ```
-Cannot find a Java installation on your machine ... matching: {languageVersion=25, ...}
-```
-
-Install it with:
-
-```bash
-sudo apt-get install -y openjdk-25-jdk-headless
+Module was compiled with an incompatible version of Kotlin.
+The binary version of its metadata is 2.4.0, expected version is 2.2.0.
 ```
 
 ## Android SDK
 
-The `:app` module requires the Android SDK. The `:core` module does **not** —
-its tests run on the JVM.
+Everything here needs the Android SDK; there is no SDK-free build path.
 
 ### Installing the SDK
 
@@ -82,8 +74,7 @@ Afterwards:
 export ANDROID_HOME="$HOME/Android/Sdk"
 ```
 
-`:app` is enabled in `settings.gradle.kts` by default. A `local.properties`
-with `sdk.dir` also works and is gitignored.
+A `local.properties` with `sdk.dir` also works and is gitignored.
 
 ### Why `compileSdk` is 36, not 37
 
@@ -119,15 +110,15 @@ automatically; it exits 0 even on failure so the session still starts cleanly.
 ## Running tests
 
 ```bash
-./gradlew :core:test          # JVM unit tests – needs a JDK 25 toolchain
-./gradlew :app:testDebugUnitTest   # Robolectric tests (requires Android SDK)
-./gradlew build               # all modules incl. lint (requires Android SDK)
+./gradlew :app:testDebugUnitTest   # unit tests
+./gradlew build                    # the above plus lint
 ```
 
-`:app` tests run on Robolectric, so they need no emulator — but they do need
-the Android SDK. Pure logic belongs in `core`, where tests are cheapest;
-`GridMetrics` lives there for exactly that reason even though only `:app`
-uses it.
+Tests run on Robolectric, so they need no emulator — but they do need the
+Android SDK. The tests under `dev.chell.launcher.core` are plain JVM tests
+with no Robolectric runner, and stay that way: pure logic belongs in that
+package, where a test costs nothing to write. `GridMetrics` lives there for
+exactly that reason even though only the Android layer uses it.
 
 ### Running on an emulator
 
