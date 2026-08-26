@@ -10,18 +10,13 @@ import android.view.View
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.PopupMenu
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.doOnLayout
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
-import androidx.viewpager2.widget.ViewPager2
-import dev.chell.launcher.core.AppDrawer
 import dev.chell.launcher.core.AppInfo
-import dev.chell.launcher.core.AppOrder
-import dev.chell.launcher.core.AppSearch
 import dev.chell.launcher.core.GridMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,11 +25,9 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
 
     private lateinit var repository: AndroidAppRepository
-    private lateinit var pager: ViewPager2
-    private lateinit var emptyMessage: TextView
     private lateinit var searchField: EditText
-    private lateinit var pageIndicator: PageIndicator
     private lateinit var favoritesRow: FavoritesRow
+    private lateinit var drawer: DrawerPager
 
     /**
      * Holds the pager and the empty message. Sizing and the initial load hang
@@ -49,15 +42,6 @@ class MainActivity : ComponentActivity() {
     /** Every installed app; what the grid shows is this filtered by the query. */
     private var allApps: List<AppInfo> = emptyList()
 
-    /** Exactly what the grid is showing, which is what a drag's indexes mean. */
-    private var shownApps: List<AppInfo> = emptyList()
-
-    private lateinit var orderStore: PackageListStore
-    private var appOrder: AppOrder = AppOrder()
-
-    /** The grid the pager is currently laid out for; null until the first load. */
-    private var currentMetrics: GridMetrics? = null
-
     /** Apps come and go while the launcher is on screen; reload when they do. */
     private val packageChangeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -70,11 +54,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        pager = findViewById(R.id.drawer_pager)
-        emptyMessage = findViewById(R.id.empty_message)
         searchField = findViewById(R.id.search_field)
         gridContainer = findViewById(R.id.grid_container)
-        pageIndicator = PageIndicator(findViewById(R.id.page_indicator))
+        repository = AndroidAppRepository(this)
         favoritesRow = FavoritesRow(
             view = findViewById(R.id.favorites_row),
             store = FavoritesStore(this),
@@ -82,13 +64,17 @@ class MainActivity : ComponentActivity() {
             onClick = ::launch,
             onLongClick = ::showAppActions,
         )
-        orderStore = PackageListStore(this, KEY_ORDER)
-        appOrder = AppOrder(orderStore.load())
-        repository = AndroidAppRepository(this)
-
-        pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) = pageIndicator.markCurrent(position)
-        })
+        drawer = DrawerPager(
+            pager = findViewById(R.id.drawer_pager),
+            emptyMessage = findViewById(R.id.empty_message),
+            pageIndicator = PageIndicator(findViewById(R.id.page_indicator)),
+            orderStore = PackageListStore(this, KEY_ORDER),
+            iconFor = ::cachedIcon,
+            onClick = ::launch,
+            onLongClick = ::showAppActions,
+            onDropOut = ::pinDroppedApp,
+            rerender = ::showApps,
+        )
 
         // A new query starts at the first page of its own results.
         searchField.doAfterTextChanged { showApps(keepPage = false) }
@@ -110,8 +96,8 @@ class MainActivity : ComponentActivity() {
         // fits fewer rows. Re-page whenever that changes the grid; re-rendering
         // in place would reenter the layout pass, so hand it to the next frame.
         gridContainer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            if (allApps.isNotEmpty() && gridMetrics() != currentMetrics) {
-                gridContainer.post { if (gridMetrics() != currentMetrics) showApps() }
+            if (allApps.isNotEmpty() && gridMetrics() != drawer.currentMetrics) {
+                gridContainer.post { if (gridMetrics() != drawer.currentMetrics) showApps() }
             }
         }
     }
@@ -145,50 +131,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Renders [allApps] filtered by the current query. [keepPage] holds the
-     * reader's place across a reload; a changed query resets to page 0.
-     */
     private fun showApps(keepPage: Boolean = true) {
         val metrics = gridMetrics()
-        currentMetrics = metrics
         favoritesRow.show(allApps, metrics.columns)
-
-        // Search results are ranked by relevance, so the arrangement only
-        // applies to the unfiltered drawer -- and only that is draggable.
-        val searching = searchField.text.isNotBlank()
-        val matched = AppSearch.search(allApps, searchField.text.toString())
-        val apps = if (searching) matched else appOrder.apply(matched)
-        shownApps = apps
-        if (apps.isEmpty()) {
-            pager.visibility = View.GONE
-            emptyMessage.setText(if (allApps.isEmpty()) R.string.no_apps else R.string.no_matches)
-            emptyMessage.visibility = View.VISIBLE
-            pageIndicator.setPageCount(0)
-            return
-        }
-        pager.visibility = View.VISIBLE
-        emptyMessage.visibility = View.GONE
-
-        val drawer = AppDrawer(apps, pageSize = metrics.pageSize)
-
-        val targetPage = if (keepPage) pager.currentItem.coerceAtMost(drawer.pageCount - 1) else 0
-        pager.adapter = DrawerPagerAdapter(
-            drawer = drawer,
-            columns = metrics.columns,
-            pageSize = metrics.pageSize,
-            iconFor = ::cachedIcon,
-            onClick = ::launch,
-            onLongClick = ::showAppActions,
-            onMove = if (searching) null else ::moveApp,
-            onEdgeHold = if (searching) null else ::leaveDrawer,
-        )
-        pager.setCurrentItem(targetPage, false)
-
-        // setCurrentItem does not fire onPageSelected when the page is already
-        // the current one, so the dots are built for the page just chosen.
-        pageIndicator.setPageCount(drawer.pageCount)
-        pageIndicator.markCurrent(targetPage)
+        drawer.show(allApps, searchField.text.toString(), metrics, keepPage)
     }
 
     /** Derives the grid from the container's measured size and the cell dimensions. */
@@ -206,51 +152,17 @@ class MainActivity : ComponentActivity() {
     private fun cachedIcon(packageName: String): Drawable? =
         iconCache.getOrPut(packageName) { repository.icon(packageName) }
 
-    /**
-     * Records a drag in the drawer. Deliberately does not re-render: the cell
-     * has already moved on screen, and rebuilding the pager under a finger
-     * that is still down would cancel the drag it is reporting.
-     */
-    fun moveApp(from: Int, to: Int) {
-        appOrder = appOrder.move(shownApps, from, to)
-        orderStore.save(appOrder.packageNames)
-        shownApps = appOrder.apply(shownApps)
+    /** A cell dragged out of the bottom of the drawer is being pinned. */
+    private fun pinDroppedApp(app: AppInfo) {
+        if (!favoritesRow.isPinned(app.packageName)) pinToFavorites(app.packageName)
     }
 
-    /**
-     * What holding a drawer cell against an edge means: sideways carries it to
-     * the neighbouring page, downwards drops it into the favourites row. There
-     * is nothing above the drawer to hand an app to.
-     */
-    fun leaveDrawer(index: Int, edge: GridDragger.Edge) {
-        val app = shownApps.getOrNull(index) ?: return
-        when (edge) {
-            GridDragger.Edge.LEFT -> carryToPage(index, -1)
-            GridDragger.Edge.RIGHT -> carryToPage(index, 1)
-            GridDragger.Edge.BOTTOM ->
-                if (!favoritesRow.isPinned(app.packageName)) pinToFavorites(app.packageName)
-            GridDragger.Edge.TOP -> Unit
-        }
-    }
+    // The drag entry points stay here as one-line delegates: they are what the
+    // tests drive, and moving the pager out should not need them rewritten.
 
-    /**
-     * Sends the app held against an edge to the neighbouring page.
-     *
-     * The drag ends here rather than continuing on the new page: each page is
-     * its own RecyclerView, and a drag cannot be handed from one to another.
-     * The app lands at the near edge of the page it was carried to, which is
-     * where it was headed.
-     */
-    fun carryToPage(index: Int, direction: Int) {
-        val pageSize = currentMetrics?.pageSize ?: return
-        val target = pager.currentItem + direction
-        if (target < 0 || target >= (pager.adapter?.itemCount ?: 0)) return
+    fun moveApp(from: Int, to: Int) = drawer.moveApp(from, to)
 
-        val landing = if (direction > 0) target * pageSize else target * pageSize + pageSize - 1
-        moveApp(index, landing.coerceIn(0, shownApps.size - 1))
-        showApps()
-        pager.setCurrentItem(target, true)
-    }
+    fun leaveDrawer(index: Int, edge: GridDragger.Edge) = drawer.leaveDrawer(index, edge)
 
     fun pinToFavorites(packageName: String) = favoritesRow.pin(packageName)
 
@@ -282,10 +194,6 @@ class MainActivity : ComponentActivity() {
         menu.show()
     }
 
-    private companion object {
-        const val KEY_ORDER = "order"
-    }
-
     private fun launch(app: AppInfo) {
         val intent = repository.launchIntent(app.packageName)
         if (intent == null) {
@@ -294,5 +202,9 @@ class MainActivity : ComponentActivity() {
             return
         }
         startActivity(intent)
+    }
+
+    private companion object {
+        const val KEY_ORDER = "order"
     }
 }
