@@ -18,16 +18,6 @@ android {
         versionName = "1.0"
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -42,7 +32,6 @@ android {
 
 dependencies {
     implementation("androidx.activity:activity-ktx:1.13.0")
-    implementation("androidx.appcompat:appcompat:1.8.0")
     implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.recyclerview:recyclerview:1.4.0")

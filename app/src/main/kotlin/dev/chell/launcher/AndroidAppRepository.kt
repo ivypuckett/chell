@@ -8,7 +8,6 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.provider.Settings
 import dev.chell.launcher.core.AppInfo
-import dev.chell.launcher.core.AppRepository
 
 /**
  * Reads the set of launchable apps from the platform [PackageManager].
@@ -16,12 +15,12 @@ import dev.chell.launcher.core.AppRepository
  * Package visibility on API 30+ is granted by the `<queries>` element in the
  * manifest, which is narrower than the QUERY_ALL_PACKAGES permission.
  */
-class AndroidAppRepository(context: Context) : AppRepository {
+class AndroidAppRepository(context: Context) {
 
     private val packageManager: PackageManager = context.packageManager
     private val ownPackageName: String = context.packageName
 
-    override fun installedApps(): List<AppInfo> {
+    fun installedApps(): List<AppInfo> {
         val launcherIntent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
 
