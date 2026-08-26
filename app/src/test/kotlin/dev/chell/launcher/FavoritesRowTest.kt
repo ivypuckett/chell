@@ -111,6 +111,29 @@ class FavoritesRowTest {
         )
     }
 
+    @Test
+    fun `an app held against the bottom of the drawer is pinned`() {
+        val activity = HomeScreen.launch().get()
+
+        // Beta is the second cell of an alphabetical drawer.
+        activity.leaveDrawer(index = 1, edge = GridDragger.Edge.BOTTOM)
+
+        assertEquals(listOf("Beta"), rowLabels(activity))
+        assertEquals(listOf("com.example.beta"), store().load().packageNames)
+    }
+
+    @Test
+    fun `holding an app that is already pinned leaves the row alone`() {
+        // Pinning puts an app at the front, so pinning Beta a second time
+        // would shuffle the row rather than do nothing.
+        store().save(Favorites().pin("com.example.beta").pin("com.example.alpha"))
+        val activity = HomeScreen.launch().get()
+
+        activity.leaveDrawer(index = 1, edge = GridDragger.Edge.BOTTOM)
+
+        assertEquals(listOf("Alpha", "Beta"), rowLabels(activity))
+    }
+
     private fun store() =
         FavoritesStore(ApplicationProvider.getApplicationContext<Context>())
 

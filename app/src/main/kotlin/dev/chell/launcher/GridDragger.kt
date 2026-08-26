@@ -20,14 +20,15 @@ import kotlin.math.abs
  * [onPress].
  *
  * [onEdgeHold] is optional and reports that a dragged cell has been held
- * against the left (-1) or right (+1) edge, which is how a drag leaves the
- * page it started on. A row that is only one page wide passes null.
+ * against one of the four edges, which is how a drag leaves the container it
+ * started in: sideways to the neighbouring page, or up and down between the
+ * drawer and the favourites row. What an edge means is the caller's business.
  */
 class GridDragger(
     private val view: RecyclerView,
     private val onMove: (from: Int, to: Int) -> Unit,
     private val onPress: (AppInfo, View) -> Unit,
-    private val onEdgeHold: ((index: Int, direction: Int) -> Unit)? = null,
+    private val onEdgeHold: ((index: Int, edge: Edge) -> Unit)? = null,
     directions: Int = SIDEWAYS,
 ) {
 
@@ -44,7 +45,7 @@ class GridDragger(
     private val handler = Handler(Looper.getMainLooper())
 
     /** The edge a cell is currently being held against, if any. */
-    private var pendingEdge = 0
+    private var pendingEdge: Edge? = null
 
     private val callback = object : ItemTouchHelper.SimpleCallback(
         directions,
@@ -73,7 +74,7 @@ class GridDragger(
             isCurrentlyActive: Boolean,
         ) {
             if (isCurrentlyActive && (abs(dX) > touchSlop || abs(dY) > touchSlop)) dragged = true
-            if (isCurrentlyActive) watchEdges(holder, dX)
+            if (isCurrentlyActive) watchEdges(holder, dX, dY)
             super.onChildDraw(canvas, recycler, holder, dX, dY, actionState, isCurrentlyActive)
         }
 
@@ -123,25 +124,23 @@ class GridDragger(
      * Fires [onEdgeHold] once a cell has been held against an edge long enough
      * to read as intent rather than as overshoot on the way to the last cell.
      */
-    private fun watchEdges(holder: RecyclerView.ViewHolder, dX: Float) {
+    private fun watchEdges(holder: RecyclerView.ViewHolder, dX: Float, dY: Float) {
         val report = onEdgeHold ?: return
         // Only once the gesture is a drag. A cell that starts life against an
         // edge -- the first or last on the page -- is already inside the
         // margin, so picking it up and pausing would otherwise carry it off
         // the page without the finger having moved at all.
         if (!dragged) return
-        val margin = holder.itemView.width / 2f
-        val left = holder.itemView.left + dX
-        val right = holder.itemView.right + dX
-        val edge = when {
-            left < margin -> -1
-            right > view.width - margin -> 1
-            else -> 0
-        }
+        // Only the axis the finger is actually travelling along. Every cell in
+        // the bottom row sits inside the bottom margin for the whole of a
+        // sideways drag, and reading both axes at once would hand it to the
+        // favourites row instead of moving it.
+        val edge =
+            if (abs(dX) >= abs(dY)) horizontalEdge(holder, dX) else verticalEdge(holder, dY)
         if (edge == pendingEdge) return
         cancelEdgeHold()
         pendingEdge = edge
-        if (edge == 0) return
+        if (edge == null) return
         // The cell keeps moving while the timer runs, so its position is read
         // when the timer fires, not when it is scheduled. Reading it here
         // carried whichever app had since taken the cell's place.
@@ -154,14 +153,43 @@ class GridDragger(
         )
     }
 
+    private fun horizontalEdge(holder: RecyclerView.ViewHolder, dX: Float): Edge? {
+        val margin = holder.itemView.width / 2f
+        return when {
+            holder.itemView.left + dX < margin -> Edge.LEFT
+            holder.itemView.right + dX > view.width - margin -> Edge.RIGHT
+            else -> null
+        }
+    }
+
+    private fun verticalEdge(holder: RecyclerView.ViewHolder, dY: Float): Edge? {
+        val margin = holder.itemView.height / 2f
+        return when {
+            holder.itemView.top + dY < margin -> Edge.TOP
+            holder.itemView.bottom + dY > view.height - margin -> Edge.BOTTOM
+            else -> null
+        }
+    }
+
     private fun cancelEdgeHold() {
         handler.removeCallbacksAndMessages(null)
-        pendingEdge = 0
+        pendingEdge = null
     }
+
+    /** The side of its container a dragged cell is being held against. */
+    enum class Edge { LEFT, RIGHT, TOP, BOTTOM }
 
     companion object {
         /** A single row: there is nowhere above or below to move a cell to. */
         const val SIDEWAYS = ItemTouchHelper.START or ItemTouchHelper.END
+
+        /**
+         * A row a cell can also be lifted up out of. There is still nowhere
+         * above to move it to; allowing the direction is what makes
+         * [ItemTouchHelper] report the upward travel at all, and a lift that
+         * ends in nothing simply drops the cell back where it was.
+         */
+        const val SIDEWAYS_OR_OUT = SIDEWAYS or ItemTouchHelper.UP
 
         /** A grid, where a cell moves in both axes. */
         const val GRID = SIDEWAYS or ItemTouchHelper.UP or ItemTouchHelper.DOWN

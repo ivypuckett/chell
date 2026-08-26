@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity() {
             onClick = ::launch,
             onLongClick = ::showAppActions,
             onMove = if (searching) null else ::moveApp,
-            onEdgeHold = if (searching) null else ::carryToPage,
+            onEdgeHold = if (searching) null else ::leaveDrawer,
         )
         pager.setCurrentItem(targetPage, false)
 
@@ -215,6 +215,22 @@ class MainActivity : ComponentActivity() {
         appOrder = appOrder.move(shownApps, from, to)
         orderStore.save(appOrder.packageNames)
         shownApps = appOrder.apply(shownApps)
+    }
+
+    /**
+     * What holding a drawer cell against an edge means: sideways carries it to
+     * the neighbouring page, downwards drops it into the favourites row. There
+     * is nothing above the drawer to hand an app to.
+     */
+    fun leaveDrawer(index: Int, edge: GridDragger.Edge) {
+        val app = shownApps.getOrNull(index) ?: return
+        when (edge) {
+            GridDragger.Edge.LEFT -> carryToPage(index, -1)
+            GridDragger.Edge.RIGHT -> carryToPage(index, 1)
+            GridDragger.Edge.BOTTOM ->
+                if (!favoritesRow.isPinned(app.packageName)) pinToFavorites(app.packageName)
+            GridDragger.Edge.TOP -> Unit
+        }
     }
 
     /**

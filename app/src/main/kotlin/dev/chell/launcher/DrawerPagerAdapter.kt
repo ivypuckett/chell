@@ -28,7 +28,7 @@ class DrawerPagerAdapter(
     private val onClick: (AppInfo) -> Unit,
     private val onLongClick: (AppInfo, View) -> Unit,
     private val onMove: ((from: Int, to: Int) -> Unit)? = null,
-    private val onEdgeHold: ((index: Int, direction: Int) -> Unit)? = null,
+    private val onEdgeHold: ((index: Int, edge: GridDragger.Edge) -> Unit)? = null,
 ) : RecyclerView.Adapter<DrawerPagerAdapter.PageViewHolder>() {
 
     class PageViewHolder(val grid: RecyclerView) : RecyclerView.ViewHolder(grid) {
@@ -46,7 +46,7 @@ class DrawerPagerAdapter(
                 onMove = { from, to -> onMove.invoke(holder.global(from), holder.global(to)) },
                 onPress = onLongClick,
                 onEdgeHold = onEdgeHold?.let { report ->
-                    { index, direction -> report(holder.global(index), direction) }
+                    { index, edge -> report(holder.global(index), edge) }
                 },
                 directions = GridDragger.GRID,
             )

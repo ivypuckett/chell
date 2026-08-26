@@ -27,8 +27,15 @@ class FavoritesRow(
     private var apps: List<AppInfo> = emptyList()
     private var columns: Int = 0
 
-    // The row is one page wide, so there is no edge to drag a cell off.
-    private val dragger = GridDragger(view, onMove = ::saveOrder, onPress = onLongClick)
+    // The row is one page wide, so its sideways edges lead nowhere; the top
+    // is the way out of it.
+    private val dragger = GridDragger(
+        view = view,
+        onMove = ::saveOrder,
+        onPress = onLongClick,
+        onEdgeHold = ::liftOut,
+        directions = GridDragger.SIDEWAYS_OR_OUT,
+    )
 
     fun isPinned(packageName: String): Boolean = favorites.isPinned(packageName)
 
@@ -56,6 +63,17 @@ class FavoritesRow(
     fun unpin(packageName: String) = update(favorites.unpin(packageName))
 
     fun move(from: Int, to: Int) = dragger.move(from, to)
+
+    /**
+     * Unpins the cell held above the row: dragging an app out of the row is the
+     * gesture for taking it out, the counterpart of dropping one in.
+     */
+    private fun liftOut(index: Int, edge: GridDragger.Edge) {
+        if (edge != GridDragger.Edge.TOP) return
+        val adapter = view.adapter as? AppGridAdapter ?: return
+        if (index !in 0 until adapter.itemCount) return
+        unpin(adapter.appAt(index).packageName)
+    }
 
     /** Records the order the cells are now in, after one of them has moved. */
     private fun saveOrder(from: Int, to: Int) {
