@@ -65,8 +65,15 @@ class FolderPopup(
             onLongClick = dragger::beginDrag,
         )
 
+        // An explicit width, not WRAP_CONTENT: a GridLayoutManager inside an
+        // unbounded parent has no width to divide between its columns, and
+        // lays the cells out on top of one another.
+        val padding = context.resources.getDimensionPixelSize(R.dimen.folder_popup_padding)
+        val width = columns * context.resources.getDimensionPixelSize(R.dimen.app_cell_width) +
+            2 * padding
+
         openId = folder.id
-        window = PopupWindow(grid, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true)
+        window = PopupWindow(grid, width, ViewGroup.LayoutParams.WRAP_CONTENT, true)
             .apply {
                 // Dismissing on an outside tap is what makes the popup feel like
                 // a layer over the drawer rather than a screen of its own.

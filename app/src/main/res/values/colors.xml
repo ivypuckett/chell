@@ -5,5 +5,8 @@
          while keeping labels legible over the worst of them. -->
     <color name="home_scrim">#59000000</color>
 
-    <color name="folder_popup_background">#D9202124</color>
+    <!-- Opaque, unlike everything else here: the popup is the one thing that
+         sits in front of the drawer rather than in front of the wallpaper, and
+         letting cells show through it makes both unreadable. -->
+    <color name="folder_popup_background">#202124</color>
 </resources>

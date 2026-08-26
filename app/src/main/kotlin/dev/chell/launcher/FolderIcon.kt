@@ -18,7 +18,11 @@ object FolderIcon {
 
     fun of(context: Context, icons: List<Drawable>): Drawable {
         val plate = context.getDrawable(R.drawable.folder_plate)
-        val shown = icons.take(TILES)
+        // Copies, not the icons themselves. They come from the launcher's icon
+        // cache and the same instance is bound to a cell elsewhere; giving one
+        // to a LayerDrawable resizes it there too, which showed up as a folder
+        // rendering as one of its members blown up to fill the plate.
+        val shown = icons.take(TILES).map { it.constantState?.newDrawable()?.mutate() ?: it }
         if (shown.isEmpty()) return plate ?: LayerDrawable(emptyArray())
 
         val size = context.resources.getDimensionPixelSize(R.dimen.folder_icon_size)
